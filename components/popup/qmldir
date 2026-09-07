@@ -1,0 +1,8 @@
+CalendarPanel CalendarPanel.qml
+LauncherPanel LauncherPanel.qml
+PowerPanel PowerPanel.qml
+ToggleCard ToggleCard.qml
+QuickSettingsPanel QuickSettingsPanel.qml
+
+ScreenshotMenuPanel ScreenshotMenuPanel.qml
+ScreenshotPanel ScreenshotPanel.qml
