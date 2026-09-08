@@ -20,6 +20,7 @@ Scope {
         }
     }
     function toggle() {
+        closeTimer.stop();
         powerPanel.visible = true;
         root.closed = false;
     }
@@ -27,7 +28,8 @@ Scope {
         id: closeTimer
         interval: Theme.animationSpeed
         onTriggered: () => {
-            powerPanel.visible = false;
+            if (root.closed)
+                powerPanel.visible = false;
         }
     }
 

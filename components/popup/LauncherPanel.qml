@@ -54,9 +54,11 @@ Scope {
 
     Timer {
         id: closeTimer
-        interval: Theme.animationSpeed
+        // Must cover the full close animation (iOS-spring duration below)
+        interval: 500
         onTriggered: () => {
-            launcherPanel.visible = false;
+            if (root.closed)
+                launcherPanel.visible = false;
         }
     }
 
@@ -67,6 +69,7 @@ Scope {
     function toggle() {
         root.closed = !root.closed;
         if (!closed) {
+            closeTimer.stop();
             launcherPanel.visible = true;
             searchInput.text = "";
             selectedIndex = -1;
@@ -94,24 +97,56 @@ Scope {
         }
         margins.top: topBar.height
 
-        // Dark overlay backdrop
+        // iOS-style dim backdrop — soft fade instead of a hard cut
+        Rectangle {
+            anchors.fill: parent
+            color: "black"
+            opacity: root.closed ? 0 : 0.35
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 400
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
         MouseArea {
             anchors.fill: parent
             onClicked: root.toggle()
         }
 
-        // Centered launcher box
+        // Centered launcher box — iOS app-open feel:
+        // fast start, long soft landing (OutExpo) + subtle scale/fade
         Rectangle {
             id: launcherBox
-            width: 700 - Theme.gap
+            width: 704 - Theme.gap
             height: 480
-            bottomRightRadius: 20
+            bottomRightRadius: 16
             color: Theme.background
-            x: root.closed ? -width : Theme.gap
-            Behavior on x {
+            y: root.closed ? -height - Theme.gap : 0
+            x: Theme.gap
+            opacity: root.closed ? 0 : 1
+            scale: root.closed ? 0.94 : 1
+            transformOrigin: Item.TopLeft
+            Behavior on y {
                 NumberAnimation {
-                    easing.type: Easing.InOutCubic
-                    duration: Theme.animationSpeed
+                    duration: 500
+                    easing.type: Easing.OutExpo
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 500
+                    easing.type: Easing.OutExpo
+                }
+            }
+            Behavior on opacity {
+                // Keep fade slightly quicker than slide so it feels
+                // fluid on open, but still visible during close.
+                // Must stay animated — without this, opacity snaps
+                // to 0 instantly and the x slide is invisible.
+                NumberAnimation {
+                    duration: 500
+                    easing.type: Easing.OutExpo
                 }
             }
             RowLayout {
@@ -205,25 +240,25 @@ Scope {
                         clip: true
                         spacing: 2
                         boundsBehavior: Flickable.StopAtBounds
+                        // Single source of truth: root.selectedIndex.
+                        // Never assign resultsList.currentIndex imperatively or this binding breaks.
                         currentIndex: root.selectedIndex
-                        highlightMoveDuration: Theme.animationSpeed / 2
-                        highlightMoveVelocity: -1
 
-                        highlight: Rectangle {
-                            radius: 8
-                            color: Theme.bgSelected
-                            visible: root.selectedIndex >= 0
-
-                            Rectangle {
-                                width: 3
-                                height: 24
-                                radius: 2
-                                color: Theme.accent
-                                anchors.left: parent.left
-                                anchors.leftMargin: 2
-                                anchors.verticalCenter: parent.verticalCenter
+                        onCountChanged: {
+                            if (count === 0) {
+                                root.selectedIndex = -1;
+                            } else if (searchInput.text !== "" && (root.selectedIndex < 0 || root.selectedIndex >= count)) {
+                                root.selectedIndex = 0;
+                                positionViewAtBeginning();
                             }
                         }
+
+                        // NOTE: no ListView `highlight:` component on purpose.
+                        // The built-in highlight animates toward currentIndex and lags
+                        // behind during fast filtering, which is exactly the
+                        // "highlight on FireAlpaca, white text on Flatseal" split.
+                        // Selection background is drawn in the delegate instead,
+                        // using the same condition as the text color.
 
                         delegate: Rectangle {
                             id: delegateRoot
@@ -236,7 +271,24 @@ Scope {
                             width: resultsList.width
                             height: 44
                             radius: 8
-                            color: "transparent"
+                            color: root.selectedIndex === delegateRoot.index ? Theme.bgSelected : "transparent"
+
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: Theme.animationSpeed / 2
+                                }
+                            }
+
+                            Rectangle {
+                                width: 3
+                                height: 24
+                                radius: 2
+                                color: Theme.accent
+                                anchors.left: parent.left
+                                anchors.leftMargin: 2
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: root.selectedIndex === delegateRoot.index
+                            }
 
                             RowLayout {
                                 anchors.fill: parent
@@ -280,12 +332,6 @@ Scope {
                                         font.bold: root.selectedIndex === delegateRoot.index
                                         elide: Text.ElideRight
                                         Layout.fillWidth: true
-
-                                        Behavior on color {
-                                            ColorAnimation {
-                                                duration: Theme.animationSpeed / 2
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -295,7 +341,7 @@ Scope {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.launchApp(delegateRoot.modelData)
-                                onPositionChanged: root.selectedIndex = delegateRoot.index
+                                onEntered: root.selectedIndex = delegateRoot.index
                             }
                         }
 
@@ -765,14 +811,14 @@ Scope {
         InvertedCorner {
             joint: "bottomRight"
             x: launcherBox.width + launcherBox.x
-            y: 0
-            // visible: !root.closed
+            y: launcherBox.y
+            opacity: launcherBox.opacity
         }
         InvertedCorner {
             joint: "bottomRight"
             x: launcherBox.x
-            y: launcherBox.height
-            // visible: !root.closed
+            y: launcherBox.height + launcherBox.y
+            opacity: launcherBox.opacity
         }
     }
 }

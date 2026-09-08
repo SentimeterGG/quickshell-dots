@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import Quickshell.Networking
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
+import Quickshell.Services.SystemTray
 import "components/bar"
 import "components/popup"
 
@@ -89,11 +90,35 @@ Variants {
 
                         Layout.alignment: Qt.AlignRight
                         RoundButton {
+                            id: trayButton
+                            Layout.topMargin: 8
+                            Layout.bottomMargin: 8
+                            Layout.preferredWidth: height
+                            Layout.fillHeight: true
+                            background: Rectangle {
+                                radius: Theme.radius - 10
+                                color: Theme.surface
+                            }
+                            onClicked: trayPanel.toggle()
+                            FlexboxLayout {
+                                justifyContent: FlexboxLayout.JustifySpaceBetween
+                                alignItems: FlexboxLayout.AlignCenter
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 12
+                                Text {
+                                    font: Theme.iconFont
+                                    text: trayPanel.closed ? "" : ""
+                                    color: Theme.text
+                                }
+                            }
+                        }
+                        RoundButton {
                             onClicked: quickSettingsPanel.toggle()
                             Layout.topMargin: 8
                             Layout.bottomMargin: 8
                             background: Rectangle {
-                                radius: Theme.radius - 8
+                                radius: Theme.radius - 10
                                 color: Theme.surface
                             }
                             Layout.preferredWidth: 90
@@ -239,6 +264,32 @@ Variants {
                     bottom: true
                     right: true
                 }
+
+                MouseArea {
+                    id: rightClickZone
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton
+                    cursorShape: Qt.PointingHandCursor
+
+                    property bool isOpen: sliderPopup.closed
+                    onClicked: {
+                        if (isOpen) {
+                            sliderPopup.show();
+                        } else {
+                            sliderPopup.hidePanel();
+                        }
+                    }
+                }
+
+                // Subtle grip hint marking the preferred hover zone (centered)
+                Rectangle {
+                    id: gripHint
+                    anchors.centerIn: parent
+                    width: 4
+                    height: 50
+                    radius: 10
+                    color: "#333"
+                }
             }
 
             // ── FRAME CORNERS (rounded inner joints where bars meet) ─
@@ -318,9 +369,10 @@ Variants {
 
                 Timer {
                     id: closeTimer
-                    interval: Theme.animationSpeed
+                    interval: 500
                     onTriggered: () => {
-                        calendarPopup.visible = false;
+                        if (calendarPopup.closed)
+                            calendarPopup.visible = false;
                     }
                 }
 
@@ -333,13 +385,14 @@ Variants {
 
                 function hidePanel() {
                     calendarPopup.closed = true;
-                    cornerTimer.interval = Theme.animationSpeed * 0.35;
+                    cornerTimer.interval = 175;
                     cornerTimer.restart();
                     closeTimer.start();
                 }
                 function toggle() {
                     calendarPopup.closed = !calendarPopup.closed;
                     if (!closed) {
+                        closeTimer.stop();
                         calendarPopup.visible = true;
                         calendar.viewMonth = new Date().getMonth();
                         calendar.viewYear = new Date().getFullYear();
@@ -347,6 +400,19 @@ Variants {
                         cornerTimer.restart();
                     } else {
                         calendarPopup.hidePanel();
+                    }
+                }
+
+                // iOS-style dim backdrop
+                Rectangle {
+                    anchors.fill: parent
+                    color: "black"
+                    opacity: calendarPopup.closed ? 0 : 0.3
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: 400
+                            easing.type: Easing.OutCubic
+                        }
                     }
                 }
 
@@ -361,10 +427,25 @@ Variants {
                     y: !calendarPopup.closed ? 0 : -height - Theme.gap - topBar.height
                     width: 320
                     height: 330 + Theme.gap
+                    opacity: calendarPopup.closed ? 0 : 1
+                    scale: calendarPopup.closed ? 0.94 : 1
+                    transformOrigin: Item.Top
                     Behavior on y {
                         NumberAnimation {
+                            duration: 500
+                            easing.type: Easing.OutExpo
+                        }
+                    }
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: 500
+                            easing.type: Easing.OutExpo
+                        }
+                    }
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: 320
                             easing.type: Easing.OutCubic
-                            duration: Theme.animationSpeed
                         }
                     }
                 }
@@ -373,14 +454,14 @@ Variants {
                 InvertedCorner {
                     joint: "bottomLeft"
                     x: calendar.x - r
-                    y: 0
-                    visible: calendarPopup.cornersVisible
+                    y: calendar.y
+                    visible: true
                 }
                 InvertedCorner {
                     joint: "bottomRight"
                     x: calendar.x + calendar.width
-                    y: 0
-                    visible: calendarPopup.cornersVisible
+                    y: calendar.y
+                    visible: true
                 }
             }
 
@@ -391,10 +472,97 @@ Variants {
                 id: powerPanel
             }
 
-            ScreenshotPanel {}
-            ScreenshotMenuPanel {}
+            ScreenshotPanel {
+                id: screenshotPanel
+            }
+            ScreenshotMenuPanel {
+                id: screenshotMenuPanel
+            }
             QuickSettingsPanel {
                 id: quickSettingsPanel
+            }
+            TrayPanel {
+                id: trayPanel
+            }
+            SliderPopup {
+                id: sliderPopup
+            }
+
+            // Only one popup at a time: whenever any popup opens,
+            // everything else closes automatically.
+            function closeOtherPopups(except) {
+                if (calendarPopup !== except && !calendarPopup.closed)
+                    calendarPopup.hidePanel();
+                if (launcherPopup !== except && !launcherPopup.closed)
+                    launcherPopup.hidePanel();
+                if (powerPanel !== except && !powerPanel.closed)
+                    powerPanel.hidePanel();
+                if (screenshotPanel !== except && !screenshotPanel.closed)
+                    screenshotPanel.hidePanel();
+                if (screenshotMenuPanel !== except && !screenshotMenuPanel.closed)
+                    screenshotMenuPanel.hidePanel();
+                if (quickSettingsPanel !== except && !quickSettingsPanel.closed)
+                    quickSettingsPanel.hidePanel();
+                if (trayPanel !== except && !trayPanel.closed)
+                    trayPanel.hidePanel();
+                if (sliderPopup !== except && !sliderPopup.closed)
+                    sliderPopup.hidePanel();
+            }
+            Connections {
+                target: calendarPopup
+                function onClosedChanged() {
+                    if (!calendarPopup.closed)
+                        closeOtherPopups(calendarPopup);
+                }
+            }
+            Connections {
+                target: launcherPopup
+                function onClosedChanged() {
+                    if (!launcherPopup.closed)
+                        closeOtherPopups(launcherPopup);
+                }
+            }
+            Connections {
+                target: powerPanel
+                function onClosedChanged() {
+                    if (!powerPanel.closed)
+                        closeOtherPopups(powerPanel);
+                }
+            }
+            Connections {
+                target: screenshotPanel
+                function onClosedChanged() {
+                    if (!screenshotPanel.closed)
+                        closeOtherPopups(screenshotPanel);
+                }
+            }
+            Connections {
+                target: screenshotMenuPanel
+                function onClosedChanged() {
+                    if (!screenshotMenuPanel.closed)
+                        closeOtherPopups(screenshotMenuPanel);
+                }
+            }
+            Connections {
+                target: quickSettingsPanel
+                function onClosedChanged() {
+                    if (!quickSettingsPanel.closed)
+                        closeOtherPopups(quickSettingsPanel);
+                }
+            }
+            Connections {
+                target: trayPanel
+                function onClosedChanged() {
+                    if (!trayPanel.closed)
+                        closeOtherPopups(trayPanel);
+                }
+            }
+            Connections {
+                target: sliderPopup
+                function onClosedChanged() {
+                    if (!sliderPopup.closed)
+                        closeOtherPopups(sliderPopup);
+                }
             }
         }
     }

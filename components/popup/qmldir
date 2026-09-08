@@ -3,6 +3,8 @@ LauncherPanel LauncherPanel.qml
 PowerPanel PowerPanel.qml
 ToggleCard ToggleCard.qml
 QuickSettingsPanel QuickSettingsPanel.qml
+TrayPanel TrayPanel.qml
+SliderPopup SliderPopup.qml
 
 ScreenshotMenuPanel ScreenshotMenuPanel.qml
 ScreenshotPanel ScreenshotPanel.qml

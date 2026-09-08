@@ -19,6 +19,7 @@ Scope {
         }
     }
     function toggle() {
+        closeTimer.stop();
         panel.visible = true;
         root.closed = false;
     }
@@ -26,7 +27,8 @@ Scope {
         id: closeTimer
         interval: Theme.animationSpeed
         onTriggered: () => {
-            panel.visible = false;
+            if (root.closed)
+                panel.visible = false;
         }
     }
 

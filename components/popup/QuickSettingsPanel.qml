@@ -221,9 +221,10 @@ Scope {
 
     Timer {
         id: closeTimer
-        interval: Theme.animationSpeed
+        interval: 500
         onTriggered: () => {
-            quickSettings.visible = false;
+            if (root.closed)
+                quickSettings.visible = false;
         }
     }
 
@@ -234,6 +235,7 @@ Scope {
     function toggle() {
         root.closed = !root.closed;
         if (!closed) {
+            closeTimer.stop();
             quickSettings.visible = true;
         } else {
             hidePanel();
@@ -258,25 +260,52 @@ Scope {
             bottom: true
         }
         margins.top: topBar.height
-        // Dark overlay backdrop
+        // iOS-style dim backdrop — soft fade instead of a hard cut
+        Rectangle {
+            anchors.fill: parent
+            color: "black"
+            opacity: root.closed ? 0 : 0.35
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 400
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
         MouseArea {
             anchors.fill: parent
             onClicked: root.toggle()
         }
 
-        // Centered launcher box
+        // Dropdown card — iOS app-open feel:
+        // drops from top with a long soft landing (OutExpo) + scale/fade
         Rectangle {
             id: launcherBox
             width: 850 - Theme.gap
             height: 500
             bottomLeftRadius: 16
             color: Theme.background
-            y: root.closed ? -height : 0
+            y: root.closed ? -height - Theme.gap : 0
             x: parent.width - width - Theme.gap
+            opacity: root.closed ? 0 : 1
+            scale: root.closed ? 0.94 : 1
+            transformOrigin: Item.TopRight
             Behavior on y {
                 NumberAnimation {
-                    easing.type: Easing.InOutCubic
-                    duration: Theme.animationSpeed
+                    duration: 500
+                    easing.type: Easing.OutExpo
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 500
+                    easing.type: Easing.OutExpo
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 320
+                    easing.type: Easing.OutCubic
                 }
             }
             RowLayout {
@@ -884,13 +913,13 @@ Scope {
                 joint: "bottomLeft"
                 x: 0 - r
                 y: 0
-                // visible: !root.closed
+                opacity: launcherBox.opacity
             }
             InvertedCorner {
                 joint: "bottomLeft"
                 x: launcherBox.width - r
                 y: launcherBox.height
-                // visible: !root.closed
+                opacity: launcherBox.opacity
             }
         }
     }
