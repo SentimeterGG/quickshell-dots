@@ -4,6 +4,7 @@ import Quickshell.Widgets
 import Quickshell.Services.SystemTray
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import "../bar"
 import "../.."
 
@@ -13,7 +14,7 @@ Scope {
 
     // 4-column grid, box sizes itself to the icon count
     readonly property int trayColumns: 4
-    readonly property real trayCell: 64
+    readonly property real trayCell: 48
     readonly property int trayCount: SystemTray.items.values.length
     readonly property int trayCols: Math.max(1, Math.min(trayColumns, trayCount))
     readonly property int trayRows: Math.max(1, Math.ceil(Math.max(1, trayCount) / trayColumns))
@@ -82,7 +83,7 @@ Scope {
         Rectangle {
             id: trayBox
             width: root.trayCols * root.trayCell + (Theme.gap - 10) * 2
-            height: trayContent.implicitHeight + (Theme.gap - 10) * 2
+            height: Math.max(trayContent.implicitHeight + (Theme.gap - 10) * 2, 25)
             radius: 16
             // square off the top edge that touches the bar so the
             // inverted corners blend seamlessly
@@ -93,7 +94,7 @@ Scope {
             x: parent.width - width - Theme.gap - 115
             opacity: root.closed ? 0 : 1
             scale: root.closed ? 0.94 : 1
-            transformOrigin: Item.TopRight
+            transformOrigin: Item.Top
             Behavior on y {
                 NumberAnimation {
                     duration: 500
@@ -142,6 +143,12 @@ Scope {
                         width: trayGrid.cellWidth
                         height: trayGrid.cellHeight
 
+                        // Anchors the popup menu to this delegate and owns the QsMenuHandle
+                        QsMenuAnchor {
+                            id: menuAnchor
+                            menu: modelData.menu
+                        }
+
                         Rectangle {
                             id: iconBg
                             anchors.centerIn: parent
@@ -163,16 +170,14 @@ Scope {
                                     Layout.preferredWidth: 24
                                     Layout.preferredHeight: 24
                                     source: modelData.icon
-                                }
-                                Text {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    Layout.maximumWidth: 52
-                                    text: modelData.tooltipTitle || modelData.title || modelData.id || "App"
-                                    font.family: Theme.bodyFont.family
-                                    font.pointSize: 7
-                                    color: Theme.textSecondary
-                                    elide: Text.ElideRight
-                                    horizontalAlignment: Text.AlignHCenter
+
+                                    ToolTip {
+                                        visible: trayMouse.containsMouse
+                                        text: modelData.tooltipTitle || modelData.title || modelData.id || "App"
+                                        delay: 400
+                                        font.family: Theme.bodyFont.family
+                                        font.pointSize: 9
+                                    }
                                 }
                             }
                         }
@@ -184,10 +189,14 @@ Scope {
                             cursorShape: Qt.PointingHandCursor
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onClicked: mouse => {
-                                if (mouse.button === Qt.LeftButton)
+                                if (mouse.button === Qt.LeftButton) {
                                     modelData.activate();
-                                else
-                                    modelData.secondaryActivate();
+                                } else if (mouse.button === Qt.RightButton) {
+                                    if (modelData.hasMenu)
+                                        menuAnchor.open();
+                                    else
+                                        modelData.secondaryActivate();
+                                }
                             }
                         }
                     }

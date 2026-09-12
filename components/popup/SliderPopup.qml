@@ -168,7 +168,15 @@ Scope {
                 bottomLeftRadius: 16
                 color: Theme.background
                 opacity: root.closed ? 0 : 1
+                scale: root.closed ? 0.94 : 1
+                transformOrigin: Item.Right
                 Behavior on x {
+                    NumberAnimation {
+                        duration: 500
+                        easing.type: Easing.OutExpo
+                    }
+                }
+                Behavior on scale {
                     NumberAnimation {
                         duration: 500
                         easing.type: Easing.OutExpo
