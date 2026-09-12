@@ -8,3 +8,5 @@ SliderPopup SliderPopup.qml
 
 ScreenshotMenuPanel ScreenshotMenuPanel.qml
 ScreenshotPanel ScreenshotPanel.qml
+NotificationChild NotificationChild.qml
+NotificationPanel NotificationPanel.qml

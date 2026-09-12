@@ -487,6 +487,9 @@ Variants {
             SliderPopup {
                 id: sliderPopup
             }
+            NotificationPanel {
+                id: notificationPanel
+            }
 
             // Only one popup at a time: whenever any popup opens,
             // everything else closes automatically.
