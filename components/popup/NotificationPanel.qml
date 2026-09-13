@@ -199,16 +199,7 @@ Scope {
                     id: listContent
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    implicitHeight: notifList.count === 0 ? emptyState.implicitHeight : Math.min(440, notifList.contentHeight)
-
-                    Text {
-                        id: emptyState
-                        anchors.centerIn: parent
-                        text: "No notifications"
-                        font: Theme.bodyFont
-                        color: Theme.textSecondary
-                        visible: notifList.count === 0
-                    }
+                    implicitHeight: Math.min(440, notifList.contentHeight) + 5
 
                     ListView {
                         id: notifList
