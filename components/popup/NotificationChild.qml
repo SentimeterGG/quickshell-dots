@@ -76,7 +76,7 @@ Rectangle {
                     Text {
                         text: {
                             var s = root.notification?.summary ?? "";
-                            return s.length > 15 ? s.slice(0, 15) + "…" : s;
+                            return s.length > 10 ? s.slice(0, 10) + "…" : s;
                         }
                         font: Theme.bodyFont
                         color: Theme.text
