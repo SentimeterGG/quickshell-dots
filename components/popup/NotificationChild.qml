@@ -74,7 +74,10 @@ Rectangle {
                 spacing: 4
                 RowLayout {
                     Text {
-                        text: root.notification?.summary ?? ""
+                        text: {
+                            var s = root.notification?.summary ?? "";
+                            return s.length > 15 ? s.slice(0, 15) + "…" : s;
+                        }
                         font: Theme.bodyFont
                         color: Theme.text
                         elide: Text.ElideRight

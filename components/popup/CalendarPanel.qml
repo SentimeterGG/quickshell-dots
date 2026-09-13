@@ -25,6 +25,8 @@ Rectangle {
     color: Theme.background
     bottomLeftRadius: 20
     bottomRightRadius: 20
+    implicitWidth: 320
+    implicitHeight: content.implicitHeight + 32
 
     Rectangle {
         anchors.top: parent.top
@@ -37,7 +39,10 @@ Rectangle {
     }
 
     ColumnLayout {
-        anchors.fill: parent
+        id: content
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.margins: 16
         spacing: 8
 
@@ -114,7 +119,7 @@ Rectangle {
             columnSpacing: 4
             rowSpacing: 4
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.preferredHeight: implicitHeight
 
             Repeater {
                 model: grid.totalCells

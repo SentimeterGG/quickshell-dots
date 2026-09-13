@@ -12,6 +12,65 @@ Scope {
     id: root
     property bool closed: true
 
+    // Custom right-click context menu state
+    property bool contextOpen: false
+    property var contextMenuHandle: null
+    property Item contextAnchorItem: null
+    property point contextClickPos: Qt.point(0, 0)
+
+    onClosedChanged: {
+        if (closed)
+            closeContextMenu();
+    }
+
+    function openContextMenu(handle, anchorItem) {
+        menuCloseTimer.stop();
+        contextMenuHandle = handle;
+        contextAnchorItem = anchorItem;
+        contextClickPos = anchorItem.mapToItem(menuLayer, 0, anchorItem.height + 4);
+        // Recreate the menu so submenu navigation always starts fresh.
+        menuLoader.active = false;
+        menuLoader.active = true;
+        contextOpen = true;
+    }
+
+    function closeContextMenu() {
+        if (!contextOpen && !menuCloseTimer.running)
+            return;
+        contextOpen = false;
+        // Hide the layer (and destroy the menu) after the fade-out finishes.
+        menuCloseTimer.start();
+    }
+
+    Timer {
+        id: menuCloseTimer
+        interval: 200
+        onTriggered: {
+            if (!root.contextOpen) {
+                menuLoader.active = false;
+                contextMenuHandle = null;
+                contextAnchorItem = null;
+            }
+        }
+    }
+
+    // Position the menu card next to the clicked icon, flipping above
+    // it and clamping to the layer when it would overflow.
+    function positionContextMenu() {
+        var item = menuLoader.item;
+        if (!item || !contextAnchorItem)
+            return;
+        var menuW = item.implicitWidth + 16;
+        var menuH = item.implicitHeight + 16;
+        menuCard.x = Math.min(Math.max(contextClickPos.x, 8), Math.max(8, menuLayer.width - menuW - 8));
+        var y = contextClickPos.y;
+        var flipped = y + menuH > layer.height - 8;
+        if (flipped)
+            y = Math.max(8, contextAnchorItem.mapToItem(layer, 0, -menuH - 4).y);
+        menuCard.y = y;
+        menuCard.transformOrigin = flipped ? Item.BottomLeft : Item.TopLeft;
+    }
+
     // 4-column grid, box sizes itself to the icon count
     readonly property int trayColumns: 4
     readonly property real trayCell: 48
@@ -76,7 +135,12 @@ Scope {
         }
         MouseArea {
             anchors.fill: parent
-            onClicked: root.toggle()
+            onClicked: {
+                if (root.contextOpen)
+                    root.closeContextMenu();
+                else
+                    root.toggle();
+            }
         }
 
         // Dropdown card, top-right, same feel as quick settings
@@ -138,16 +202,11 @@ Scope {
                     }
 
                     delegate: Item {
+                        id: delegateRoot
                         required property var modelData
                         required property int index
                         width: trayGrid.cellWidth
                         height: trayGrid.cellHeight
-
-                        // Anchors the popup menu to this delegate and owns the QsMenuHandle
-                        QsMenuAnchor {
-                            id: menuAnchor
-                            menu: modelData.menu
-                        }
 
                         Rectangle {
                             id: iconBg
@@ -171,13 +230,13 @@ Scope {
                                     Layout.preferredHeight: 24
                                     source: modelData.icon
 
-                                    ToolTip {
-                                        visible: trayMouse.containsMouse
-                                        text: modelData.tooltipTitle || modelData.title || modelData.id || "App"
-                                        delay: 400
-                                        font.family: Theme.bodyFont.family
-                                        font.pointSize: 9
-                                    }
+                                    // ToolTip {
+                                    //     visible: trayMouse.containsMouse
+                                    //     text: modelData.tooltipTitle || modelData.title || modelData.id || "App"
+                                    //     delay: 400
+                                    //     font.family: Theme.bodyFont.family
+                                    //     font.pointSize: 9
+                                    // }
                                 }
                             }
                         }
@@ -190,10 +249,13 @@ Scope {
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onClicked: mouse => {
                                 if (mouse.button === Qt.LeftButton) {
-                                    modelData.activate();
+                                    if (modelData.onlyMenu && modelData.hasMenu)
+                                        root.openContextMenu(modelData.menu, delegateRoot);
+                                    else
+                                        modelData.activate();
                                 } else if (mouse.button === Qt.RightButton) {
                                     if (modelData.hasMenu)
-                                        menuAnchor.open();
+                                        root.openContextMenu(modelData.menu, delegateRoot);
                                     else
                                         modelData.secondaryActivate();
                                 }
@@ -215,6 +277,76 @@ Scope {
                 x: trayBox.width
                 y: 0
                 opacity: trayBox.opacity
+            }
+        }
+
+        // Custom context menu layer, above the card.
+        Item {
+            id: menuLayer
+            anchors.fill: parent
+            visible: root.contextOpen || menuCloseTimer.running
+
+            // Clicking outside the menu dismisses it.
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                onClicked: root.closeContextMenu()
+            }
+
+            Rectangle {
+                id: menuCard
+                width: (menuLoader.item ? menuLoader.item.implicitWidth : 200) + 16
+                height: (menuLoader.item ? menuLoader.item.implicitHeight : 0) + 16
+                radius: 12
+                color: Theme.background
+                border.color: Theme.border
+                border.width: 1
+                opacity: root.contextOpen ? 1 : 0
+                scale: root.contextOpen ? 1 : 0.94
+                transformOrigin: Item.TopLeft
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 200
+                        easing.type: Easing.OutCubic
+                    }
+                }
+                Behavior on scale {
+                    NumberAnimation {
+                        duration: 350
+                        easing.type: Easing.OutExpo
+                    }
+                }
+                // Smooth resize when navigating between submenu pages.
+                Behavior on width {
+                    NumberAnimation {
+                        duration: 200
+                        easing.type: Easing.OutCubic
+                    }
+                }
+                Behavior on height {
+                    NumberAnimation {
+                        duration: 200
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                // Keep the card on-screen when a submenu grows taller.
+                onHeightChanged: {
+                    if (root.contextOpen && y + height > menuLayer.height - 8)
+                        y = Math.max(8, menuLayer.height - 8 - height);
+                }
+
+                Loader {
+                    id: menuLoader
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    active: false
+                    sourceComponent: TrayContextMenu {
+                        handle: root.contextMenuHandle
+                        onCloseRequested: root.closeContextMenu()
+                    }
+                    onLoaded: root.positionContextMenu()
+                }
             }
         }
     }

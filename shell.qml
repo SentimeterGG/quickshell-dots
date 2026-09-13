@@ -1,3 +1,4 @@
+//@ pragma UseQApplication
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -426,7 +427,7 @@ Variants {
                     x: topBar.width / 2 - width / 2
                     y: !calendarPopup.closed ? 0 : -height - Theme.gap - topBar.height
                     width: 320
-                    height: 330 + Theme.gap
+                    height: implicitHeight
                     opacity: calendarPopup.closed ? 0 : 1
                     scale: calendarPopup.closed ? 0.94 : 1
                     transformOrigin: Item.Top

@@ -4,6 +4,7 @@ PowerPanel PowerPanel.qml
 ToggleCard ToggleCard.qml
 QuickSettingsPanel QuickSettingsPanel.qml
 TrayPanel TrayPanel.qml
+TrayContextMenu TrayContextMenu.qml
 SliderPopup SliderPopup.qml
 
 ScreenshotMenuPanel ScreenshotMenuPanel.qml
