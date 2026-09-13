@@ -8,6 +8,7 @@ import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 import Quickshell.Widgets
 import Quickshell.Io
+import Qt5Compat.GraphicalEffects
 import "../bar"
 import "../.."
 
@@ -129,18 +130,33 @@ Scope {
         }
     }
 
+    // NOTE: one single-line command per process. SplitParser delivers
+    // stdout line-by-line, so a multi-line command ("whoami; hostname")
+    // would misattribute chunks (hostname overwrote userName).
     Process {
         id: userProc
-        command: ["sh", "-c", "whoami; hostname"]
+        command: ["sh", "-c", "whoami"]
         stdout: SplitParser {
             onRead: data => {
                 if (!data)
                     return;
-                var lines = data.trim().split("\n");
-                if (lines.length > 0 && lines[0].trim())
-                    root.userName = lines[0].trim();
-                if (lines.length > 1 && lines[1].trim())
-                    root.hostName = lines[1].trim();
+                var v = data.trim();
+                if (v)
+                    root.userName = v;
+            }
+        }
+    }
+
+    Process {
+        id: hostProc
+        command: ["sh", "-c", "hostname"]
+        stdout: SplitParser {
+            onRead: data => {
+                if (!data)
+                    return;
+                var v = data.trim();
+                if (v)
+                    root.hostName = v;
             }
         }
     }
@@ -210,6 +226,7 @@ Scope {
             wmProc.running = true;
             uptimeProc.running = true;
             userProc.running = true;
+            hostProc.running = true;
             btProc.running = true;
             powerProc.running = true;
         }
@@ -464,10 +481,10 @@ Scope {
                                         anchors.leftMargin: 30
                                         spacing: 32
                                         Rectangle {
-                                            Layout.preferredWidth: 56
-                                            Layout.preferredHeight: 56
+                                            Layout.preferredWidth: 100
+                                            Layout.preferredHeight: 100
                                             Layout.alignment: Qt.AlignVCenter
-                                            radius: 28
+                                            radius: 100
                                             color: Theme.surface
                                             border.width: 1
                                             border.color: Theme.border
@@ -481,9 +498,20 @@ Scope {
                                             }
                                             Image {
                                                 anchors.fill: parent
-                                                source: root.userName ? "file:///home/" + root.userName + "/.face" : ""
+                                                source: "file://" + Quickshell.env("HOME") + "/.face"
                                                 fillMode: Image.PreserveAspectCrop
                                                 visible: status === Image.Ready
+                                                // clip:true on the parent Rectangle is
+                                                // rectangular and ignores radius, so mask
+                                                // the image itself into the circle.
+                                                layer.enabled: true
+                                                layer.effect: OpacityMask {
+                                                    maskSource: Rectangle {
+                                                        width: 56
+                                                        height: 56
+                                                        radius: 28
+                                                    }
+                                                }
                                             }
                                         }
                                         ColumnLayout {

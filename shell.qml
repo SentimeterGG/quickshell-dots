@@ -491,6 +491,10 @@ Variants {
             NotificationPanel {
                 id: notificationPanel
             }
+            EmojiPanel {
+                id: emojiPanel
+                targetScreen: screenRoot.modelData
+            }
 
             // Only one popup at a time: whenever any popup opens,
             // everything else closes automatically.
@@ -511,6 +515,8 @@ Variants {
                     trayPanel.hidePanel();
                 if (sliderPopup !== except && !sliderPopup.closed)
                     sliderPopup.hidePanel();
+                if (emojiPanel !== except && !emojiPanel.closed)
+                    emojiPanel.hidePanel();
             }
             Connections {
                 target: calendarPopup
@@ -566,6 +572,13 @@ Variants {
                 function onClosedChanged() {
                     if (!sliderPopup.closed)
                         closeOtherPopups(sliderPopup);
+                }
+            }
+            Connections {
+                target: emojiPanel
+                function onClosedChanged() {
+                    if (!emojiPanel.closed)
+                        closeOtherPopups(emojiPanel);
                 }
             }
         }
