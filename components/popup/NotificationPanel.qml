@@ -190,19 +190,15 @@ Scope {
 
                 RowLayout {
                     id: header
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 8
                 }
 
                 // ── List of NotificationChild ──
                 Item {
                     id: listContent
-                    anchors.top: header.bottom
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     implicitHeight: notifList.count === 0 ? emptyState.implicitHeight : Math.min(440, notifList.contentHeight)
 
                     Text {
