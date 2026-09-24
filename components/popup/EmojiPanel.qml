@@ -334,7 +334,7 @@ Scope {
             opacity: root.claimed ? 0.35 : 0
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 400
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutCubic
                 }
             }
@@ -377,19 +377,19 @@ Scope {
             transformOrigin: Item.TopLeft
             Behavior on y {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 320
+                    duration: Theme.animationSpeed / 2
                     easing.type: Easing.OutCubic
                 }
             }
             Behavior on scale {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }

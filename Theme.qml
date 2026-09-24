@@ -36,5 +36,5 @@ QtObject {
     property color textSecondary: "#aaa"
     property color bgSelected: "#333"
     property color transparent: "#00000000"
-    property int animationSpeed: 500
+    property int animationSpeed: 0
 }

@@ -51,7 +51,7 @@ Scope {
 
     Timer {
         id: closeTimer
-        interval: 500
+        interval: Theme.animationSpeed
         onTriggered: () => {
             if (root.closed)
                 notifPopup.visible = false;
@@ -127,7 +127,7 @@ Scope {
                 onTriggered: {
                     if (Math.abs(notifBox.pendingHeight - notifBox.animatedHeight) > 2) {
                         const growing = notifBox.pendingHeight > notifBox.animatedHeight;
-                        heightAnim.duration = growing ? 200 : 150;
+                        heightAnim.duration = growing ? Theme.animationSpeed / 2 : Theme.animationSpeed / 3;
                         heightAnim.to = notifBox.pendingHeight;
                         if (growing)
                             notifBox.windowHeight = notifBox.pendingHeight;  // resize surface once, up front
@@ -147,13 +147,13 @@ Scope {
             transformOrigin: Item.TopRight
             Behavior on y {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
             Behavior on scale {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
@@ -162,13 +162,13 @@ Scope {
                 id: heightAnim
                 target: notifBox
                 property: "animatedHeight"
-                duration: 500
+                duration: Theme.animationSpeed
                 easing.type: Easing.OutExpo
                 onStopped: notifBox.windowHeight = notifBox.pendingHeight  // resize surface once, at the end (shrink case)
             }
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 320
+                    duration: Theme.animationSpeed / 2
                     easing.type: Easing.OutCubic
                 }
             }
@@ -228,7 +228,7 @@ Scope {
                                 property: "opacity"
                                 from: 0
                                 to: 1
-                                duration: 200
+                                duration: Theme.animationSpeed / 2
                                 easing.type: Easing.OutCubic
                             }
                         }

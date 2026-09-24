@@ -68,7 +68,7 @@ Scope {
     // Covers the slide-out animation (see closeTimer fix)
     Timer {
         id: closeTimer
-        interval: 100
+        interval: Theme.animationSpeed
         onTriggered: () => {
             if (root.closed)
                 sliderPopup.visible = false;
@@ -116,7 +116,7 @@ Scope {
             opacity: root.closed ? 0 : 0.35
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 400
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutCubic
                 }
             }
@@ -172,19 +172,19 @@ Scope {
                 transformOrigin: Item.Right
                 Behavior on x {
                     NumberAnimation {
-                        duration: 500
+                        duration: Theme.animationSpeed
                         easing.type: Easing.OutExpo
                     }
                 }
                 Behavior on scale {
                     NumberAnimation {
-                        duration: 500
+                        duration: Theme.animationSpeed
                         easing.type: Easing.OutExpo
                     }
                 }
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: 320
+                        duration: Theme.animationSpeed / 2
                         easing.type: Easing.OutCubic
                     }
                 }

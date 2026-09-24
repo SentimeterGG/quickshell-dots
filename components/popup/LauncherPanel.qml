@@ -55,7 +55,7 @@ Scope {
     Timer {
         id: closeTimer
         // Must cover the full close animation (iOS-spring duration below)
-        interval: 500
+        interval: Theme.animationSpeed
         onTriggered: () => {
             if (root.closed)
                 launcherPanel.visible = false;
@@ -104,7 +104,7 @@ Scope {
             opacity: root.closed ? 0 : 0.35
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 400
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutCubic
                 }
             }
@@ -129,13 +129,13 @@ Scope {
             transformOrigin: Item.TopLeft
             Behavior on y {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
             Behavior on scale {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
@@ -145,7 +145,7 @@ Scope {
                 // Must stay animated — without this, opacity snaps
                 // to 0 instantly and the x slide is invisible.
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }

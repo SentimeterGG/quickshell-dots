@@ -238,7 +238,7 @@ Scope {
 
     Timer {
         id: closeTimer
-        interval: 500
+        interval: Theme.animationSpeed
         onTriggered: () => {
             if (root.closed)
                 quickSettings.visible = false;
@@ -284,7 +284,7 @@ Scope {
             opacity: root.closed ? 0 : 0.35
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 400
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutCubic
                 }
             }
@@ -309,19 +309,19 @@ Scope {
             transformOrigin: Item.TopRight
             Behavior on y {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
             Behavior on scale {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 320
+                    duration: Theme.animationSpeed / 2
                     easing.type: Easing.OutCubic
                 }
             }

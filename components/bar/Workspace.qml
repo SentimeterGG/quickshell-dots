@@ -24,7 +24,7 @@ RowLayout {
                 color: I3.focusedWorkspace && I3.focusedWorkspace.number === index + 1 ? "white" : Theme.surface
                 Behavior on color {
                     ColorAnimation {
-                        duration: 150
+                        duration: Theme.animationSpeed / 2
                     }
                 }
             }

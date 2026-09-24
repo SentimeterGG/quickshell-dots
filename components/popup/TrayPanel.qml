@@ -44,7 +44,7 @@ Scope {
 
     Timer {
         id: menuCloseTimer
-        interval: 200
+        interval: Theme.animationSpeed / 2
         onTriggered: {
             if (!root.contextOpen) {
                 menuLoader.active = false;
@@ -80,7 +80,7 @@ Scope {
 
     Timer {
         id: closeTimer
-        interval: 500
+        interval: Theme.animationSpeed
         onTriggered: () => {
             if (root.closed)
                 trayPopup.visible = false;
@@ -128,7 +128,7 @@ Scope {
             opacity: root.closed ? 0 : 0.35
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 400
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutCubic
                 }
             }
@@ -161,19 +161,19 @@ Scope {
             transformOrigin: Item.Top
             Behavior on y {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
             Behavior on scale {
                 NumberAnimation {
-                    duration: 500
+                    duration: Theme.animationSpeed
                     easing.type: Easing.OutExpo
                 }
             }
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 320
+                    duration: Theme.animationSpeed / 2
                     easing.type: Easing.OutCubic
                 }
             }
@@ -306,26 +306,26 @@ Scope {
                 transformOrigin: Item.TopLeft
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: 200
+                        duration: Theme.animationSpeed / 2
                         easing.type: Easing.OutCubic
                     }
                 }
                 Behavior on scale {
                     NumberAnimation {
-                        duration: 350
+                        duration: Theme.animationSpeed / 2
                         easing.type: Easing.OutExpo
                     }
                 }
                 // Smooth resize when navigating between submenu pages.
                 Behavior on width {
                     NumberAnimation {
-                        duration: 200
+                        duration: Theme.animationSpeed / 2
                         easing.type: Easing.OutCubic
                     }
                 }
                 Behavior on height {
                     NumberAnimation {
-                        duration: 200
+                        duration: Theme.animationSpeed / 2
                         easing.type: Easing.OutCubic
                     }
                 }
