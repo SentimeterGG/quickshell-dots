@@ -207,6 +207,8 @@ Scope {
                         clip: true
                         spacing: 8
                         boundsBehavior: Flickable.StopAtBounds
+                        cacheBuffer: 240
+                        reuseItems: true
 
                         model: notifServer.trackedNotifications
 

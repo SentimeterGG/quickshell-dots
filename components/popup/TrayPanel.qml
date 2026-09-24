@@ -196,6 +196,8 @@ Scope {
                     cellWidth: root.trayCell
                     cellHeight: root.trayCell
                     interactive: false
+                    cacheBuffer: 96
+                    reuseItems: true
 
                     model: ScriptModel {
                         values: SystemTray.items.values

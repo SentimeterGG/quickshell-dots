@@ -74,6 +74,8 @@ Scope {
         armed = false;
         claimed = false;
         cardVisible = false;
+        armTimer.stop();
+        searchDebounce.stop();
         closeTimer.start();
         if (EmojiState.owner === screenName())
             EmojiState.close();
@@ -148,6 +150,14 @@ Scope {
     property string pendingChar: ""
     property string outputsJson: ""
 
+    // Debounce typing — EmojiData.search scans the full dataset per keystroke.
+    Timer {
+        id: searchDebounce
+        interval: 60
+        repeat: false
+        onTriggered: root.refreshModel()
+    }
+
     Timer {
         id: armTimer
         interval: 250
@@ -172,6 +182,8 @@ Scope {
     function disarm() {
         armed = false;
         closed = true;
+        armTimer.stop();
+        searchDebounce.stop();
         emojiPopup.visible = false;
     }
 
@@ -415,7 +427,7 @@ Scope {
                         border.width: 1
                         border.color: searchField.activeFocus ? Theme.textSecondary : Theme.border
                     }
-                    onTextChanged: root.refreshModel()
+                    onTextChanged: searchDebounce.restart()
                     Keys.onEscapePressed: root.hidePanel()
                     Keys.onDownPressed: {
                         if (emojiGrid.count > 0) {
@@ -441,6 +453,8 @@ Scope {
                     spacing: 6
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+                    cacheBuffer: 120
+                    reuseItems: true
                     model: root.tabNames
 
                     delegate: Rectangle {
@@ -484,6 +498,8 @@ Scope {
                         cellWidth: 45
                         cellHeight: 50
                         boundsBehavior: Flickable.StopAtBounds
+                        cacheBuffer: 200
+                        reuseItems: true
 
                         model: root.filtered
 

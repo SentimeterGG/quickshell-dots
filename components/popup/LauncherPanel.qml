@@ -24,26 +24,49 @@ Scope {
 
     property int selectedIndex: 0
     property bool closed: true
+    property string searchQuery: ""
+
+    // Debounce typing so filtering/sorting runs once per burst, not per keystroke.
+    Timer {
+        id: searchDebounce
+        interval: 60
+        repeat: false
+        onTriggered: root.searchQuery = searchInput.text.trim().toLowerCase()
+    }
+
+    // Cache lowercase haystacks once — avoids toLowerCase() on every keystroke.
+    readonly property var _allApps: [...DesktopEntries.applications.values]
+    readonly property var _appHaystacks: _allApps.map(a => ({
+                entry: a,
+                name: (a.name ?? "").toLowerCase(),
+                generic: (a.genericName ?? "").toLowerCase(),
+                keywords: (a.keywords ?? []).map(k => k.toLowerCase()).join(" "),
+                categories: (a.categories ?? []).map(c => c.toLowerCase()).join(" ")
+            }))
 
     ScriptModel {
         id: filteredApps
         objectProp: "id"
         values: {
-            const all = [...DesktopEntries.applications.values];
-            const q = searchInput.text.trim().toLowerCase();
+            const q = root.searchQuery;
             if (q === "")
-                return all.sort((a, b) => a.name.localeCompare(b.name));
-            return all.filter(d => (d.name && d.name.toLowerCase().includes(q)) || (d.genericName && d.genericName.toLowerCase().includes(q)) || (d.keywords && d.keywords.some(k => k.toLowerCase().includes(q))) || (d.categories && d.categories.some(c => c.toLowerCase().includes(q)))).sort((a, b) => {
-                const an = a.name.toLowerCase();
-                const bn = b.name.toLowerCase();
-                const aStarts = an.startsWith(q);
-                const bStarts = bn.startsWith(q);
-                if (aStarts && !bStarts)
-                    return -1;
-                if (!aStarts && bStarts)
-                    return 1;
-                return an.localeCompare(bn);
-            });
+                return root._allApps.slice().sort((a, b) => a.name.localeCompare(b.name)).slice(0, 100);
+            const hits = [];
+            const starts = [];
+            const rest = [];
+            for (const h of root._appHaystacks) {
+                if (h.name.includes(q) || h.generic.includes(q) || h.keywords.includes(q) || h.categories.includes(q)) {
+                    if (h.name.startsWith(q))
+                        starts.push(h.entry);
+                    else if (h.name.includes(q))
+                        hits.push(h.entry);
+                    else
+                        rest.push(h.entry);
+                }
+                if (starts.length + hits.length + rest.length >= 100)
+                    break;
+            }
+            return starts.concat(hits, rest).slice(0, 100);
         }
     }
 
@@ -71,7 +94,9 @@ Scope {
         if (!closed) {
             closeTimer.stop();
             launcherPanel.visible = true;
+            searchDebounce.stop();
             searchInput.text = "";
+            root.searchQuery = "";
             selectedIndex = -1;
             searchInput.forceActiveFocus();
         } else {
@@ -194,7 +219,10 @@ Scope {
                                     verticalAlignment: Text.AlignVCenter
                                 }
 
-                                onTextChanged: root.selectedIndex = text === "" ? -1 : 0
+                                onTextChanged: {
+                                    root.selectedIndex = text === "" ? -1 : 0;
+                                    searchDebounce.restart();
+                                }
 
                                 Keys.onEscapePressed: root.toggle()
 
@@ -240,6 +268,8 @@ Scope {
                         clip: true
                         spacing: 2
                         boundsBehavior: Flickable.StopAtBounds
+                        cacheBuffer: 220
+                        reuseItems: true
                         // Single source of truth: root.selectedIndex.
                         // Never assign resultsList.currentIndex imperatively or this binding breaks.
                         currentIndex: root.selectedIndex
@@ -247,7 +277,7 @@ Scope {
                         onCountChanged: {
                             if (count === 0) {
                                 root.selectedIndex = -1;
-                            } else if (searchInput.text !== "" && (root.selectedIndex < 0 || root.selectedIndex >= count)) {
+                            } else if (root.searchQuery !== "" && (root.selectedIndex < 0 || root.selectedIndex >= count)) {
                                 root.selectedIndex = 0;
                                 positionViewAtBeginning();
                             }
@@ -272,12 +302,6 @@ Scope {
                             height: 44
                             radius: 8
                             color: root.selectedIndex === delegateRoot.index ? Theme.bgSelected : "transparent"
-
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: Theme.animationSpeed / 2
-                                }
-                            }
 
                             Rectangle {
                                 width: 3
@@ -469,6 +493,16 @@ Scope {
                                 rowSpacing: 8
                                 columnSpacing: 8
 
+                                // Resolve pins once — was O(pins × apps) per delegate eval.
+                                readonly property var _appById: {
+                                    const m = {};
+                                    for (const a of root._allApps) {
+                                        m[a.id.toLowerCase()] = a;
+                                        m[(a.id.toLowerCase().endsWith(".desktop") ? a.id.toLowerCase().slice(0, -8) : a.id.toLowerCase())] = a;
+                                    }
+                                    return m;
+                                }
+
                                 Repeater {
                                     model: [
                                         {
@@ -514,21 +548,16 @@ Scope {
                                         }
 
                                         property var entry: {
-                                            const apps = [...DesktopEntries.applications.values];
-
-                                            // 1. Try to find an exact match for the ID (e.g., "foot" or "foot.desktop")
-                                            let match = apps.find(app => {
-                                                const appId = app.id.toLowerCase();
-                                                const targetId = modelData.id.toLowerCase();
-                                                return appId === targetId || appId === targetId + ".desktop";
-                                            });
-
-                                            // 2. Fallback to a looser include match ONLY if an exact match wasn't found
-                                            if (!match) {
-                                                match = apps.find(app => app.id.toLowerCase().includes(modelData.id.toLowerCase()));
+                                            const key = modelData.id.toLowerCase();
+                                            const direct = pinnedApps._appById[key] ?? null;
+                                            if (direct)
+                                                return direct;
+                                            // Single fallback scan only for missing pins.
+                                            for (const app of root._allApps) {
+                                                if (app.id.toLowerCase().includes(key))
+                                                    return app;
                                             }
-
-                                            return match || null;
+                                            return null;
                                         }
 
                                         ColumnLayout {
@@ -591,13 +620,14 @@ Scope {
                                 // The Binding "catches" the URL when it's valid.
                                 // When it becomes "", the `when` condition becomes false.
                                 // Because restoreMode is RestoreNone, it KEEPS the last valid URL instead of clearing!
+                                // Gated on !closed so MPRIS churn while hidden costs nothing.
                                 Binding on _artUrl {
                                     value: Players.active ? Players.active.trackArtUrl : ""
-                                    when: Players.active !== null && Players.active.trackArtUrl !== ""
+                                    when: !root.closed && Players.active !== null && Players.active.trackArtUrl !== ""
                                     restoreMode: Binding.RestoreNone
                                 }
 
-                                readonly property bool _artReady: backgroundImage.status === Image.Ready
+                                readonly property bool _artReady: !root.closed && backgroundImage.status === Image.Ready
 
                                 Image {
                                     id: backgroundImage
@@ -607,7 +637,7 @@ Scope {
                                     autoTransform: true
                                     visible: false
                                     cache: false // MPRIS often reuses URLs with different content
-                                    source: mediaControlRect._artUrl // Bind to our "caught" URL
+                                    source: root.closed ? "" : mediaControlRect._artUrl
                                 }
 
                                 Rectangle {
@@ -622,15 +652,9 @@ Scope {
                                     anchors.fill: parent
                                     source: backgroundImage
                                     maskSource: maskStencil
-                                    cached: false
+                                    cached: true
                                     visible: mediaControlRect._artReady
                                     opacity: mediaControlRect._artReady ? 1 : 0
-                                    Behavior on opacity {
-                                        NumberAnimation {
-                                            duration: Theme.animationSpeed / 2
-                                            easing: Easing.OutCubic
-                                        }
-                                    }
                                 }
 
                                 // Dark overlay
@@ -679,7 +703,7 @@ Scope {
 
                                         FrameAnimation {
                                             id: positionPoker
-                                            running: Players.active !== null && Players.active.playbackState === MprisPlaybackState.Playing && Players.active.canSeek
+                                            running: !root.closed && Players.active !== null && Players.active.playbackState === MprisPlaybackState.Playing && Players.active.canSeek
                                             onTriggered: {
                                                 if (Players.active)
                                                     Players.active.positionChanged();

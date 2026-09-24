@@ -80,7 +80,7 @@ Scope {
     Timer {
         id: statsTimer
         interval: 2000
-        running: true
+        running: !root.closed
         repeat: true
         triggeredOnStart: true
         onTriggered: () => {
@@ -218,17 +218,33 @@ Scope {
     Timer {
         id: sysInfoTimer
         interval: 30000
-        running: true
+        running: !root.closed
         repeat: true
         triggeredOnStart: true
         onTriggered: () => {
-            osProc.running = true;
-            wmProc.running = true;
             uptimeProc.running = true;
-            userProc.running = true;
-            hostProc.running = true;
             btProc.running = true;
             powerProc.running = true;
+        }
+    }
+
+    // Static info never changes at runtime — fetch once, not every 30s.
+    Component.onCompleted: {
+        osProc.running = true;
+        wmProc.running = true;
+        userProc.running = true;
+        hostProc.running = true;
+    }
+
+    onClosedChanged: {
+        if (!closed) {
+            // Refresh dynamic state immediately on open for lowest latency.
+            uptimeProc.running = true;
+            btProc.running = true;
+            powerProc.running = true;
+            cpuProc.running = true;
+            memProc.running = true;
+            tempProc.running = true;
         }
     }
 
@@ -500,11 +516,13 @@ Scope {
                                                 anchors.fill: parent
                                                 source: "file://" + Quickshell.env("HOME") + "/.face"
                                                 fillMode: Image.PreserveAspectCrop
+                                                asynchronous: true
+                                                cache: true
                                                 visible: status === Image.Ready
                                                 // clip:true on the parent Rectangle is
                                                 // rectangular and ignores radius, so mask
                                                 // the image itself into the circle.
-                                                layer.enabled: true
+                                                layer.enabled: visible
                                                 layer.effect: OpacityMask {
                                                     maskSource: Rectangle {
                                                         width: 56
@@ -721,12 +739,6 @@ Scope {
                                                 height: parent.height
                                                 radius: Theme.radius - 10
                                                 color: info.color
-                                                Behavior on width {
-                                                    NumberAnimation {
-                                                        duration: Theme.animationSpeed
-                                                        easing.type: Easing.InOutCubic
-                                                    }
-                                                }
                                             }
                                         }
                                         Text {
@@ -798,12 +810,6 @@ Scope {
                                             x: sysVolumeSlider.leftPadding + sysVolumeSlider.visualPosition * sysVolumeSlider.availableWidth - 4
                                             color: "#888"
                                             border.color: Theme.surface
-                                            Behavior on x {
-                                                NumberAnimation {
-                                                    easing: Easing.OutCubic
-                                                    duration: Theme.animationSpeed
-                                                }
-                                            }
                                         }
 
                                         background: Rectangle {
@@ -825,12 +831,6 @@ Scope {
                                                 width: sysVolumeSlider.visualPosition * parent.width
                                                 color: Theme.muted
                                                 radius: Theme.radius - 10
-                                                Behavior on width {
-                                                    NumberAnimation {
-                                                        easing: Easing.OutCubic
-                                                        duration: Theme.animationSpeed
-                                                    }
-                                                }
                                             }
                                         }
                                     }
@@ -853,8 +853,10 @@ Scope {
                                     Layout.fillHeight: true
                                     clip: true
                                     spacing: Theme.gap - 6
+                                    visible: !root.closed
+                                    activeFocusOnTab: false
 
-                                    model: root.sinkLinkTracker.linkGroups
+                                    model: root.closed ? null : root.sinkLinkTracker.linkGroups
 
                                     delegate: RowLayout {
                                         width: ListView.view.width
@@ -888,12 +890,6 @@ Scope {
                                                 x: applicationSlider.leftPadding + applicationSlider.visualPosition * applicationSlider.availableWidth - 4
                                                 color: "#888"
                                                 border.color: Theme.surface
-                                                Behavior on x {
-                                                    NumberAnimation {
-                                                        easing: Easing.OutCubic
-                                                        duration: Theme.animationSpeed
-                                                    }
-                                                }
                                             }
                                             background: Rectangle {
                                                 x: applicationSlider.leftPadding
@@ -914,12 +910,6 @@ Scope {
                                                     anchors.bottom: parent.bottom
                                                     color: Theme.muted
                                                     radius: Theme.radius - 10
-                                                    Behavior on width {
-                                                        NumberAnimation {
-                                                            easing: Easing.OutCubic
-                                                            duration: Theme.animationSpeed
-                                                        }
-                                                    }
                                                 }
                                             }
                                         }
