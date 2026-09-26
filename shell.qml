@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Networking
 import Quickshell.Services.Pipewire
@@ -12,12 +13,190 @@ import "components/bar"
 import "components/popup"
 
 // qmllint disable uncreatable-type
-Variants {
-    model: Quickshell.screens
-    delegate: Component {
-        Item {
-            id: screenRoot
-            required property var modelData
+ShellRoot {
+    id: shellRoot
+
+    // ── GLOBAL POPUPS (one instance total, built lazily on first open) ──
+    // Bars stay per-screen in the Variants below; everything else lives
+    // here once, so extra monitors cost ~nothing and there is a single
+    // NotificationServer instead of one daemon per screen.
+    Loader {
+        id: launcherLoader
+        active: false
+        sourceComponent: LauncherPanel {}
+    }
+    Loader {
+        id: powerLoader
+        active: false
+        sourceComponent: PowerPanel {}
+    }
+    Loader {
+        id: screenshotLoader
+        active: false
+        sourceComponent: ScreenshotPanel {}
+    }
+    Loader {
+        id: screenshotMenuLoader
+        active: false
+        sourceComponent: ScreenshotMenuPanel {}
+    }
+    Loader {
+        id: quickSettingsLoader
+        active: false
+        sourceComponent: QuickSettingsPanel {}
+    }
+    Loader {
+        id: trayLoader
+        active: false
+        sourceComponent: TrayPanel {}
+    }
+    Loader {
+        id: sliderLoader
+        active: false
+        sourceComponent: SliderPopup {}
+    }
+    Loader {
+        id: notificationLoader
+        active: false
+        sourceComponent: NotificationPanel {}
+    }
+
+    // IPC entry points live here so they work before first open.
+    // (The matching handlers were removed from the popup files to
+    // avoid double-toggling once the component loads.)
+    IpcHandler {
+        target: "launcher"
+        function toggle() {
+            shellRoot.toggleLauncher();
+        }
+    }
+    IpcHandler {
+        target: "screenshot"
+        function toggle() {
+            shellRoot.toggleScreenshot();
+        }
+    }
+    IpcHandler {
+        target: "screenshot-menu"
+        function toggle() {
+            shellRoot.toggleScreenshotMenu();
+        }
+    }
+
+    function openPopup(loader) {
+        if (!loader.active)
+            loader.active = true;
+        return loader.item;
+    }
+    function toggleLauncher() {
+        openPopup(launcherLoader).toggle();
+    }
+    function togglePower() {
+        openPopup(powerLoader).toggle();
+    }
+    function toggleScreenshot() {
+        openPopup(screenshotLoader).toggle();
+    }
+    function toggleScreenshotMenu() {
+        openPopup(screenshotMenuLoader).toggle();
+    }
+    function toggleQuickSettings() {
+        openPopup(quickSettingsLoader).toggle();
+    }
+    function toggleTray() {
+        openPopup(trayLoader).toggle();
+    }
+    function toggleNotifications() {
+        openPopup(notificationLoader).toggle();
+    }
+    function toggleSlider() {
+        const p = openPopup(sliderLoader);
+        if (p.closed)
+            p.show();
+        else
+            p.hidePanel();
+    }
+
+    // Only one popup at a time, across all screens. Closing the others
+    // bumps popupEpoch so each screen drops its own calendar/emoji too.
+    property int popupEpoch: 0
+    function closeOtherPopups(except) {
+        const loaders = [launcherLoader, powerLoader, screenshotLoader, screenshotMenuLoader, quickSettingsLoader, trayLoader, sliderLoader, notificationLoader];
+        for (const l of loaders) {
+            const p = l.active ? l.item : null;
+            if (p && p !== except && !p.closed)
+                p.hidePanel();
+        }
+        popupEpoch++;
+    }
+
+    // Whenever a global popup opens, close the rest.
+    Connections {
+        target: launcherLoader.active ? launcherLoader.item : null
+        function onClosedChanged() {
+            if (!launcherLoader.item.closed)
+                shellRoot.closeOtherPopups(launcherLoader.item);
+        }
+    }
+    Connections {
+        target: powerLoader.active ? powerLoader.item : null
+        function onClosedChanged() {
+            if (!powerLoader.item.closed)
+                shellRoot.closeOtherPopups(powerLoader.item);
+        }
+    }
+    Connections {
+        target: screenshotLoader.active ? screenshotLoader.item : null
+        function onClosedChanged() {
+            if (!screenshotLoader.item.closed)
+                shellRoot.closeOtherPopups(screenshotLoader.item);
+        }
+    }
+    Connections {
+        target: screenshotMenuLoader.active ? screenshotMenuLoader.item : null
+        function onClosedChanged() {
+            if (!screenshotMenuLoader.item.closed)
+                shellRoot.closeOtherPopups(screenshotMenuLoader.item);
+        }
+    }
+    Connections {
+        target: quickSettingsLoader.active ? quickSettingsLoader.item : null
+        function onClosedChanged() {
+            if (!quickSettingsLoader.item.closed)
+                shellRoot.closeOtherPopups(quickSettingsLoader.item);
+        }
+    }
+    Connections {
+        target: trayLoader.active ? trayLoader.item : null
+        function onClosedChanged() {
+            if (!trayLoader.item.closed)
+                shellRoot.closeOtherPopups(trayLoader.item);
+        }
+    }
+    Connections {
+        target: sliderLoader.active ? sliderLoader.item : null
+        function onClosedChanged() {
+            if (!sliderLoader.item.closed)
+                shellRoot.closeOtherPopups(sliderLoader.item);
+        }
+    }
+    Connections {
+        target: notificationLoader.active ? notificationLoader.item : null
+        function onClosedChanged() {
+            if (!notificationLoader.item.closed)
+                shellRoot.closeOtherPopups(notificationLoader.item);
+        }
+    }
+
+    // ── PER-SCREEN BARS ──
+    Variants {
+        model: Quickshell.screens
+        delegate: Component {
+            Item {
+                id: screenRoot
+                required property var modelData
+                // Guards this screen's epoch watcher while it is the opener.
+                property bool epochGuard: false
 
             // ── TOP BAR (full widgets) ──────────────────────────────
             PanelWindow {
@@ -51,7 +230,7 @@ Variants {
                             font.pointSize: 11
                             text: "󰣇"
                             Layout.preferredWidth: height
-                            onClicked: launcherPopup.toggle()
+                            onClicked: shellRoot.toggleLauncher()
 
                             background: Rectangle {
                                 color: Theme.transparent
@@ -100,7 +279,7 @@ Variants {
                                 radius: Theme.radius - 10
                                 color: Theme.surface
                             }
-                            onClicked: trayPanel.toggle()
+                            onClicked: shellRoot.toggleTray()
                             FlexboxLayout {
                                 justifyContent: FlexboxLayout.JustifySpaceBetween
                                 alignItems: FlexboxLayout.AlignCenter
@@ -109,13 +288,13 @@ Variants {
                                 anchors.rightMargin: 12
                                 Text {
                                     font: Theme.iconFont
-                                    text: trayPanel.closed ? "" : ""
+                                    text: (trayLoader.active && !trayLoader.item.closed) ? "" : ""
                                     color: Theme.text
                                 }
                             }
                         }
                         RoundButton {
-                            onClicked: quickSettingsPanel.toggle()
+                            onClicked: shellRoot.toggleQuickSettings()
                             Layout.topMargin: 8
                             Layout.bottomMargin: 8
                             background: Rectangle {
@@ -216,7 +395,7 @@ Variants {
                             background: Rectangle {
                                 color: Theme.transparent
                             }
-                            onClicked: powerPanel.toggle()
+                            onClicked: shellRoot.togglePower()
                         }
                     }
                 }
@@ -271,15 +450,7 @@ Variants {
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton
                     cursorShape: Qt.PointingHandCursor
-
-                    property bool isOpen: sliderPopup.closed
-                    onClicked: {
-                        if (isOpen) {
-                            sliderPopup.show();
-                        } else {
-                            sliderPopup.hidePanel();
-                        }
-                    }
+                    onClicked: shellRoot.toggleSlider()
                 }
 
                 // Subtle grip hint marking the preferred hover zone (centered)
@@ -466,121 +637,44 @@ Variants {
                 }
             }
 
-            LauncherPanel {
-                id: launcherPopup
-            }
-            PowerPanel {
-                id: powerPanel
-            }
-
-            ScreenshotPanel {
-                id: screenshotPanel
-            }
-            ScreenshotMenuPanel {
-                id: screenshotMenuPanel
-            }
-            QuickSettingsPanel {
-                id: quickSettingsPanel
-            }
-            TrayPanel {
-                id: trayPanel
-            }
-            SliderPopup {
-                id: sliderPopup
-            }
-            NotificationPanel {
-                id: notificationPanel
-            }
             EmojiPanel {
                 id: emojiPanel
                 targetScreen: screenRoot.modelData
             }
 
-            // Only one popup at a time: whenever any popup opens,
-            // everything else closes automatically.
-            function closeOtherPopups(except) {
-                if (calendarPopup !== except && !calendarPopup.closed)
-                    calendarPopup.hidePanel();
-                if (launcherPopup !== except && !launcherPopup.closed)
-                    launcherPopup.hidePanel();
-                if (powerPanel !== except && !powerPanel.closed)
-                    powerPanel.hidePanel();
-                if (screenshotPanel !== except && !screenshotPanel.closed)
-                    screenshotPanel.hidePanel();
-                if (screenshotMenuPanel !== except && !screenshotMenuPanel.closed)
-                    screenshotMenuPanel.hidePanel();
-                if (quickSettingsPanel !== except && !quickSettingsPanel.closed)
-                    quickSettingsPanel.hidePanel();
-                if (trayPanel !== except && !trayPanel.closed)
-                    trayPanel.hidePanel();
-                if (sliderPopup !== except && !sliderPopup.closed)
-                    sliderPopup.hidePanel();
-                if (emojiPanel !== except && !emojiPanel.closed)
-                    emojiPanel.hidePanel();
+            // This screen's own popups yield whenever anything opens anywhere
+            // (shellRoot.popupEpoch bumps in closeOtherPopups).
+            Connections {
+                target: shellRoot
+                function onPopupEpochChanged() {
+                    if (screenRoot.epochGuard)
+                        return;
+                    if (!calendarPopup.closed)
+                        calendarPopup.hidePanel();
+                    if (!emojiPanel.closed)
+                        emojiPanel.hidePanel();
+                }
             }
             Connections {
                 target: calendarPopup
                 function onClosedChanged() {
-                    if (!calendarPopup.closed)
-                        closeOtherPopups(calendarPopup);
-                }
-            }
-            Connections {
-                target: launcherPopup
-                function onClosedChanged() {
-                    if (!launcherPopup.closed)
-                        closeOtherPopups(launcherPopup);
-                }
-            }
-            Connections {
-                target: powerPanel
-                function onClosedChanged() {
-                    if (!powerPanel.closed)
-                        closeOtherPopups(powerPanel);
-                }
-            }
-            Connections {
-                target: screenshotPanel
-                function onClosedChanged() {
-                    if (!screenshotPanel.closed)
-                        closeOtherPopups(screenshotPanel);
-                }
-            }
-            Connections {
-                target: screenshotMenuPanel
-                function onClosedChanged() {
-                    if (!screenshotMenuPanel.closed)
-                        closeOtherPopups(screenshotMenuPanel);
-                }
-            }
-            Connections {
-                target: quickSettingsPanel
-                function onClosedChanged() {
-                    if (!quickSettingsPanel.closed)
-                        closeOtherPopups(quickSettingsPanel);
-                }
-            }
-            Connections {
-                target: trayPanel
-                function onClosedChanged() {
-                    if (!trayPanel.closed)
-                        closeOtherPopups(trayPanel);
-                }
-            }
-            Connections {
-                target: sliderPopup
-                function onClosedChanged() {
-                    if (!sliderPopup.closed)
-                        closeOtherPopups(sliderPopup);
+                    if (!calendarPopup.closed) {
+                        screenRoot.epochGuard = true;
+                        shellRoot.closeOtherPopups(null);
+                        screenRoot.epochGuard = false;
+                    }
                 }
             }
             Connections {
                 target: emojiPanel
                 function onClosedChanged() {
-                    if (!emojiPanel.closed)
-                        closeOtherPopups(emojiPanel);
+                    if (!emojiPanel.closed) {
+                        screenRoot.epochGuard = true;
+                        shellRoot.closeOtherPopups(null);
+                        screenRoot.epochGuard = false;
+                    }
                 }
             }
         }
     }
-}
+}}

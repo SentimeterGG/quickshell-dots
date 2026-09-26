@@ -12,13 +12,6 @@ Scope {
     id: root
     property bool closed: true
 
-    IpcHandler {
-        target: "screenshot"
-
-        function toggle() {
-            root.toggle();
-        }
-    }
     function toggle() {
         closeTimer.stop();
         powerPanel.visible = true;

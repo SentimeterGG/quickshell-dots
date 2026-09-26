@@ -11,13 +11,6 @@ Scope {
     id: root
     property bool closed: true
 
-    IpcHandler {
-        target: "screenshot-menu"
-
-        function toggle() {
-            root.toggle();
-        }
-    }
     function toggle() {
         closeTimer.stop();
         panel.visible = true;

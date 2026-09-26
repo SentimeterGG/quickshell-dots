@@ -14,14 +14,6 @@ import "../../services"
 Scope {
     id: root
 
-    IpcHandler {
-        target: "launcher"
-
-        function toggle() {
-            root.toggle();
-        }
-    }
-
     property int selectedIndex: 0
     property bool closed: true
     property string searchQuery: ""
@@ -120,7 +112,6 @@ Scope {
             right: true
             bottom: true
         }
-        margins.top: topBar.height
 
         // iOS-style dim backdrop — soft fade instead of a hard cut
         Rectangle {
@@ -147,7 +138,7 @@ Scope {
             height: 480
             bottomRightRadius: 16
             color: Theme.background
-            y: root.closed ? -height - Theme.gap : 0
+            y: root.closed ? -height - Theme.gap : 48
             x: Theme.gap
             opacity: root.closed ? 0 : 1
             scale: root.closed ? 0.94 : 1

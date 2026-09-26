@@ -90,6 +90,7 @@ Scope {
             return;
         claimed = true;
         cardVisible = true;
+        armTimer.stop();
     }
 
     function refreshModel() {
@@ -160,17 +161,30 @@ Scope {
 
     Timer {
         id: armTimer
-        interval: 250
+        interval: 50
         onTriggered: {
             if (claimed)
                 return;
-            // Someone else claimed: stand down.
+            // Someone claimed via pointer event: stand down.
             if (EmojiState.owner !== "") {
                 root.disarm();
                 return;
             }
-            // No pointer event arrived (e.g. perfectly still cursor
-            // whose enter carried no motion): fall back to the focused
+            // Still cursor, no pointer event arrived: don't wait for a
+            // swaymsg round-trip (~200ms). The primary screen claims
+            // instantly (same as the old centerFallback); a real pointer
+            // event on another screen would have fired before this 50ms
+            // timer and claimed already.
+            if (screenName() === Quickshell.screens[0].name) {
+                if (EmojiState.claim(screenName())) {
+                    claimed = true;
+                    cardVisible = true;
+                } else {
+                    root.disarm();
+                }
+                return;
+            }
+            // Non-primary with no pointer event: fall back to the focused
             // output via swaymsg instead of blind centering.
             if (!outputsProc.running) {
                 root.outputsJson = "";

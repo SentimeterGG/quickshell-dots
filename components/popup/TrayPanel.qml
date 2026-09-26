@@ -119,7 +119,6 @@ Scope {
             right: true
             bottom: true
         }
-        margins.top: topBar.height
 
         // dim backdrop
         Rectangle {
@@ -147,14 +146,14 @@ Scope {
         Rectangle {
             id: trayBox
             width: root.trayCols * root.trayCell + (Theme.gap - 10) * 2
-            height: Math.max(trayContent.implicitHeight + (Theme.gap - 10) * 2, 25)
+            height: Math.max(trayContent.implicitHeight + (Theme.gap - 10) * 2, 32)
             radius: 16
             // square off the top edge that touches the bar so the
             // inverted corners blend seamlessly
             topLeftRadius: 0
             topRightRadius: 0
             color: Theme.background
-            y: root.closed ? -height - Theme.gap : 0
+            y: root.closed ? -height - Theme.gap : 48
             x: parent.width - width - Theme.gap - 115
             opacity: root.closed ? 0 : 1
             scale: root.closed ? 0.94 : 1

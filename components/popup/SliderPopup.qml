@@ -138,7 +138,7 @@ Scope {
             // and nothing gets clipped.
             width: sliderContent.implicitWidth + (Theme.gap - 4) * 2
             height: sliderBox.height + cornerTop.r + cornerBottom.r
-            x: parent.width - width - rightBar.width
+            x: parent.width - width - 16
             y: (parent.height - height) / 2 + 16
             clip: true
 
