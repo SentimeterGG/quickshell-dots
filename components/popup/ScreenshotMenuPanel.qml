@@ -35,7 +35,7 @@ Scope {
         visible: false
         focusable: true
         color: "transparent"
-        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         WlrLayershell.namespace: "quickshell-launcher"
 

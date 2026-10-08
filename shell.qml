@@ -198,483 +198,503 @@ ShellRoot {
                 // Guards this screen's epoch watcher while it is the opener.
                 property bool epochGuard: false
 
-            // ── TOP BAR (full widgets) ──────────────────────────────
-            PanelWindow {
-                id: topBar
-                screen: screenRoot.modelData
-                implicitHeight: 48
-                exclusiveZone: 48
-                color: Theme.background
+                // ── LAYERING CONTRACT ─────────────────────────────────────
+                // Bars (top/bottom/left/right + frameCorners) sit on
+                // WlrLayer.Overlay; every popup sits on WlrLayer.Top.
+                // Overlay is above Top in z-order, so popups slide out from
+                // *behind* the frame and the bars stay lit and clickable
+                // (the dim backdrop never covers them).
+                //
+                // exclusiveZone still reserves space on Overlay: sway
+                // arranges shell_overlay exclusive surfaces before
+                // shell_top in arrange_layers().
 
-                anchors {
-                    left: true
-                    top: true
-                    right: true
-                }
+                // ── TOP BAR (full widgets) ──────────────────────────────
+                PanelWindow {
+                    id: topBar
+                    screen: screenRoot.modelData
+                    implicitHeight: 48
+                    exclusiveZone: 48
+                    color: Theme.background
+                    WlrLayershell.layer: WlrLayer.Overlay
+                    WlrLayershell.namespace: "quickshell-bar-top"
 
-                RowLayout {
-                    id: root
-
-                    anchors.leftMargin: 7
-                    anchors.rightMargin: 7
-                    anchors.fill: parent
-                    uniformCellSizes: true
-
-                    RowLayout {
-                        id: leftSide
-
-                        Button {
-                            id: launcher
-
-                            font.family: Theme.bodyFont.family
-                            font.pointSize: 11
-                            text: "󰣇"
-                            Layout.preferredWidth: height
-                            onClicked: shellRoot.toggleLauncher()
-
-                            background: Rectangle {
-                                color: Theme.transparent
-                            }
-                        }
-
-                        Separator {}
-                        Workspace {}
-                    }
-
-                    Text {
-                        id: clocks
-
-                        property var date: new Date()
-
-                        Layout.alignment: Qt.AlignCenter
-                        font: Theme.clockFont
-                        text: date.toLocaleString(Qt.locale(), "hh:mm AP")
-                        color: Theme.text
-
-                        Timer {
-                            interval: 1000
-                            running: true
-                            repeat: true
-                            onTriggered: parent.date = new Date()
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: calendarPopup.toggle()
-                        }
+                    anchors {
+                        left: true
+                        top: true
+                        right: true
                     }
 
                     RowLayout {
-                        id: rightSide
+                        id: root
 
-                        Layout.alignment: Qt.AlignRight
-                        RoundButton {
-                            id: trayButton
-                            Layout.topMargin: 8
-                            Layout.bottomMargin: 8
-                            Layout.preferredWidth: height
-                            Layout.fillHeight: true
-                            background: Rectangle {
-                                radius: Theme.radius - 10
-                                color: Theme.surface
-                            }
-                            onClicked: shellRoot.toggleTray()
-                            FlexboxLayout {
-                                justifyContent: FlexboxLayout.JustifySpaceBetween
-                                alignItems: FlexboxLayout.AlignCenter
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 12
-                                Text {
-                                    font: Theme.iconFont
-                                    text: (trayLoader.active && !trayLoader.item.closed) ? "" : ""
-                                    color: Theme.text
+                        anchors.leftMargin: 7
+                        anchors.rightMargin: 7
+                        anchors.fill: parent
+                        uniformCellSizes: true
+
+                        RowLayout {
+                            id: leftSide
+
+                            Button {
+                                id: launcher
+
+                                font.family: Theme.bodyFont.family
+                                font.pointSize: 11
+                                text: "󰣇"
+                                Layout.preferredWidth: height
+                                onClicked: shellRoot.toggleLauncher()
+
+                                background: Rectangle {
+                                    color: Theme.transparent
                                 }
+                            }
+
+                            Separator {}
+                            Workspace {}
+                        }
+
+                        Text {
+                            id: clocks
+
+                            property var date: new Date()
+
+                            Layout.alignment: Qt.AlignCenter
+                            font: Theme.clockFont
+                            text: date.toLocaleString(Qt.locale(), "hh:mm AP")
+                            color: Theme.text
+
+                            Timer {
+                                interval: 1000
+                                running: true
+                                repeat: true
+                                onTriggered: parent.date = new Date()
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: calendarPopup.toggle()
                             }
                         }
-                        RoundButton {
-                            onClicked: shellRoot.toggleQuickSettings()
-                            Layout.topMargin: 8
-                            Layout.bottomMargin: 8
-                            background: Rectangle {
-                                radius: Theme.radius - 10
-                                color: Theme.surface
-                            }
-                            Layout.preferredWidth: 90
-                            Layout.fillHeight: true
-                            FlexboxLayout {
-                                justifyContent: FlexboxLayout.JustifySpaceBetween
-                                alignItems: FlexboxLayout.AlignCenter
-                                anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 12
-                                PwObjectTracker {
-                                    objects: [Pipewire.defaultAudioSink]
+
+                        RowLayout {
+                            id: rightSide
+
+                            Layout.alignment: Qt.AlignRight
+                            RoundButton {
+                                id: trayButton
+                                Layout.topMargin: 8
+                                Layout.bottomMargin: 8
+                                Layout.preferredWidth: height
+                                Layout.fillHeight: true
+                                background: Rectangle {
+                                    radius: Theme.radius - 10
+                                    color: Theme.surface
                                 }
-                                Text {
-                                    id: wifiIndicator
-                                    text: {
-                                        const wifi = Networking.devices.values.find(d => d.type === DeviceType.Wifi);
-                                        const eth = Networking.devices.values.find(d => d.type === DeviceType.Wired);
-                                        if (eth?.connected)
-                                            return "󰌘";
-                                        if (!wifi || !wifi.connected)
-                                            return "󰤭";
-                                        const net = wifi.networks.values.find(n => n.connected);
-                                        if (!net)
-                                            return "󰤭";
-                                        const s = net.signalStrength;
-                                        if (s > 0.80)
-                                            return "󰤨";
-                                        if (s > 0.60)
-                                            return "󰤥";
-                                        if (s > 0.30)
-                                            return "󰤢";
-                                        return "󰤟";
+                                onClicked: shellRoot.toggleTray()
+                                FlexboxLayout {
+                                    justifyContent: FlexboxLayout.JustifySpaceBetween
+                                    alignItems: FlexboxLayout.AlignCenter
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 12
+                                    Text {
+                                        font: Theme.iconFont
+                                        text: (trayLoader.active && !trayLoader.item.closed) ? "" : ""
+                                        color: Theme.text
                                     }
-                                    font: Theme.iconFont
-                                    color: Theme.text
                                 }
-                                Text {
-                                    id: soundIndicator
-                                    text: {
-                                        const sink = Pipewire.defaultAudioSink;
-                                        if (!sink)
+                            }
+                            RoundButton {
+                                onClicked: shellRoot.toggleQuickSettings()
+                                Layout.topMargin: 8
+                                Layout.bottomMargin: 8
+                                background: Rectangle {
+                                    radius: Theme.radius - 10
+                                    color: Theme.surface
+                                }
+                                Layout.preferredWidth: 90
+                                Layout.fillHeight: true
+                                FlexboxLayout {
+                                    justifyContent: FlexboxLayout.JustifySpaceBetween
+                                    alignItems: FlexboxLayout.AlignCenter
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 12
+                                    anchors.rightMargin: 12
+                                    PwObjectTracker {
+                                        objects: [Pipewire.defaultAudioSink]
+                                    }
+                                    Text {
+                                        id: wifiIndicator
+                                        text: {
+                                            const wifi = Networking.devices.values.find(d => d.type === DeviceType.Wifi);
+                                            const eth = Networking.devices.values.find(d => d.type === DeviceType.Wired);
+                                            if (eth?.connected)
+                                                return "󰌘";
+                                            if (!wifi || !wifi.connected)
+                                                return "󰤭";
+                                            const net = wifi.networks.values.find(n => n.connected);
+                                            if (!net)
+                                                return "󰤭";
+                                            const s = net.signalStrength;
+                                            if (s > 0.80)
+                                                return "󰤨";
+                                            if (s > 0.60)
+                                                return "󰤥";
+                                            if (s > 0.30)
+                                                return "󰤢";
+                                            return "󰤟";
+                                        }
+                                        font: Theme.iconFont
+                                        color: Theme.text
+                                    }
+                                    Text {
+                                        id: soundIndicator
+                                        text: {
+                                            const sink = Pipewire.defaultAudioSink;
+                                            if (!sink)
+                                                return "󰕿";
+                                            if (sink.audio.muted)
+                                                return "󰝟";
+                                            const v = sink.audio.volume;
+                                            if (v > 0.80)
+                                                return "󰕾";
+                                            if (v > 0.20)
+                                                return "󰖀";
                                             return "󰕿";
-                                        if (sink.audio.muted)
-                                            return "󰝟";
-                                        const v = sink.audio.volume;
-                                        if (v > 0.80)
-                                            return "󰕾";
-                                        if (v > 0.20)
-                                            return "󰖀";
-                                        return "󰕿";
+                                        }
+                                        font.family: Theme.iconFont.family
+                                        font.pointSize: 12
+                                        color: Theme.text
                                     }
-                                    font.family: Theme.iconFont.family
-                                    font.pointSize: 12
-                                    color: Theme.text
-                                }
-                                Text {
-                                    id: batteryIndicator
-                                    text: {
-                                        const bat = UPower.displayDevice;
-                                        if (!bat || !bat.ready || !bat.isPresent)
+                                    Text {
+                                        id: batteryIndicator
+                                        text: {
+                                            const bat = UPower.displayDevice;
+                                            if (!bat || !bat.ready || !bat.isPresent)
+                                                return "";
+                                            if (bat.state === UPowerDeviceState.Charging || bat.state === UPowerDeviceState.PendingCharge)
+                                                return "󱐋";
+                                            if (bat.state === UPowerDeviceState.FullyCharged)
+                                                return "";
+                                            const raw = bat.percentage;
+                                            const frac = raw > 1 ? raw / 100 : raw;
+                                            if (frac > 0.75)
+                                                return "";
+                                            if (frac > 0.50)
+                                                return "";
+                                            if (frac > 0.25)
+                                                return "";
+                                            if (frac > 0.10)
+                                                return "";
                                             return "";
-                                        if (bat.state === UPowerDeviceState.Charging || bat.state === UPowerDeviceState.PendingCharge)
-                                            return "󱐋";
-                                        if (bat.state === UPowerDeviceState.FullyCharged)
-                                            return "";
-                                        const raw = bat.percentage;
-                                        const frac = raw > 1 ? raw / 100 : raw;
-                                        if (frac > 0.75)
-                                            return "";
-                                        if (frac > 0.50)
-                                            return "";
-                                        if (frac > 0.25)
-                                            return "";
-                                        if (frac > 0.10)
-                                            return "";
-                                        return "";
+                                        }
+                                        font.family: Theme.iconFont.family
+                                        font.pointSize: 11
+                                        color: Theme.text
                                     }
-                                    font.family: Theme.iconFont.family
-                                    font.pointSize: 11
-                                    color: Theme.text
                                 }
                             }
-                        }
-                        Separator {}
+                            Separator {}
 
-                        RoundButton {
-                            id: poweroff
+                            RoundButton {
+                                id: poweroff
 
-                            font: Theme.iconFont
-                            text: " "
-                            Layout.preferredWidth: height
+                                font: Theme.iconFont
+                                text: " "
+                                Layout.preferredWidth: height
 
-                            background: Rectangle {
-                                color: Theme.transparent
+                                background: Rectangle {
+                                    color: Theme.transparent
+                                }
+                                onClicked: shellRoot.togglePower()
                             }
-                            onClicked: shellRoot.togglePower()
                         }
                     }
                 }
-            }
 
-            // ── BOTTOM BAR (empty frame, widgets live on top) ───────
-            PanelWindow {
-                id: bottomBar
-                screen: screenRoot.modelData
-                implicitHeight: 16
-                exclusiveZone: 16
-                color: Theme.background
+                // ── BOTTOM BAR (empty frame, widgets live on top) ───────
+                PanelWindow {
+                    id: bottomBar
+                    screen: screenRoot.modelData
+                    implicitHeight: 16
+                    exclusiveZone: 16
+                    color: Theme.background
+                    WlrLayershell.layer: WlrLayer.Overlay
+                    WlrLayershell.namespace: "quickshell-bar-bottom"
 
-                anchors {
-                    left: true
-                    right: true
-                    bottom: true
-                }
-            }
-
-            // ── LEFT BAR (empty frame, inset between top/bottom) ─────
-            PanelWindow {
-                id: leftBar
-                screen: screenRoot.modelData
-                implicitWidth: 16
-                exclusiveZone: 16
-                color: Theme.background
-
-                anchors {
-                    top: true
-                    bottom: true
-                    left: true
-                }
-            }
-
-            // ── RIGHT BAR (empty frame, inset between top/bottom) ────
-            PanelWindow {
-                id: rightBar
-                screen: screenRoot.modelData
-                implicitWidth: 16
-                exclusiveZone: 16
-                color: Theme.background
-
-                anchors {
-                    top: true
-                    bottom: true
-                    right: true
-                }
-
-                MouseArea {
-                    id: rightClickZone
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: shellRoot.toggleSlider()
-                }
-
-                // Subtle grip hint marking the preferred hover zone (centered)
-                Rectangle {
-                    id: gripHint
-                    anchors.centerIn: parent
-                    width: 4
-                    height: 50
-                    radius: 10
-                    color: "#333"
-                }
-            }
-
-            // ── FRAME CORNERS (rounded inner joints where bars meet) ─
-            // Transparent fullscreen overlay. Bar windows are clipped to
-            // their own rect, so the concave fillet at each inner junction
-            // has to be drawn here, on the transparent gap. Takes no input.
-            PanelWindow {
-                id: frameCorners
-                screen: screenRoot.modelData
-                color: "transparent"
-                exclusionMode: ExclusionMode.Ignore
-                WlrLayershell.layer: WlrLayer.Top
-                WlrLayershell.namespace: "quickshell-frame-corners"
-
-                mask: Region {}
-
-                anchors {
-                    top: true
-                    bottom: true
-                    left: true
-                    right: true
-                }
-
-                readonly property real barT: topBar.height
-                readonly property real barB: bottomBar.height
-                readonly property real barL: leftBar.width
-                readonly property real barR: rightBar.width
-
-                // top-left inner joint (leftBar top end)
-                InvertedCorner {
-                    joint: "bottomRight"
-                    x: frameCorners.barL
-                    y: frameCorners.barT
-                }
-                // top-right inner joint
-                InvertedCorner {
-                    joint: "bottomLeft"
-                    x: parent.width - frameCorners.barR - r
-                    y: frameCorners.barT
-                }
-                // bottom-left inner joint
-                InvertedCorner {
-                    joint: "topRight"
-                    x: frameCorners.barL
-                    y: parent.height - frameCorners.barB - r
-                }
-                // bottom-right inner joint
-                InvertedCorner {
-                    joint: "topLeft"
-                    x: parent.width - frameCorners.barR - r
-                    y: parent.height - frameCorners.barB - r
-                }
-            }
-
-            PanelWindow {
-                id: calendarPopup
-                screen: screenRoot.modelData
-                visible: false
-                focusable: true
-                color: "transparent"
-                WlrLayershell.layer: WlrLayer.Overlay
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-                WlrLayershell.namespace: "quickshell-calendar"
-
-                exclusionMode: ExclusionMode.Ignore
-
-                anchors {
-                    top: true
-                    left: true
-                    bottom: true
-                    right: true
-                }
-                margins.top: topBar.height
-
-                property bool closed: true
-                property bool cornersVisible: false
-
-                Timer {
-                    id: closeTimer
-                    interval: Theme.animationSpeed
-                    onTriggered: () => {
-                        if (calendarPopup.closed)
-                            calendarPopup.visible = false;
+                    anchors {
+                        left: true
+                        right: true
+                        bottom: true
                     }
                 }
 
-                // Staggers the InvertedCorner pieces vs the slide animation:
-                // opening -> appear 30ms in, hiding -> disappear 30ms early.
-                Timer {
-                    id: cornerTimer
-                    onTriggered: calendarPopup.cornersVisible = !calendarPopup.closed
+                // ── LEFT BAR (empty frame, inset between top/bottom) ─────
+                PanelWindow {
+                    id: leftBar
+                    screen: screenRoot.modelData
+                    implicitWidth: 16
+                    exclusiveZone: 16
+                    color: Theme.background
+                    WlrLayershell.layer: WlrLayer.Overlay
+                    WlrLayershell.namespace: "quickshell-bar-left"
+
+                    anchors {
+                        top: true
+                        bottom: true
+                        left: true
+                    }
                 }
 
-                function hidePanel() {
-                    calendarPopup.closed = true;
-                    cornerTimer.interval = 175;
-                    cornerTimer.restart();
-                    closeTimer.start();
+                // ── RIGHT BAR (empty frame, inset between top/bottom) ────
+                PanelWindow {
+                    id: rightBar
+                    screen: screenRoot.modelData
+                    implicitWidth: 16
+                    exclusiveZone: 16
+                    color: Theme.background
+                    WlrLayershell.layer: WlrLayer.Overlay
+                    WlrLayershell.namespace: "quickshell-bar-right"
+
+                    anchors {
+                        top: true
+                        bottom: true
+                        right: true
+                    }
+
+                    MouseArea {
+                        id: rightClickZone
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: shellRoot.toggleSlider()
+                    }
+
+                    // Subtle grip hint marking the preferred hover zone (centered)
+                    Rectangle {
+                        id: gripHint
+                        anchors.centerIn: parent
+                        width: 4
+                        height: 50
+                        radius: 10
+                        color: "#333"
+                    }
                 }
-                function toggle() {
-                    calendarPopup.closed = !calendarPopup.closed;
-                    if (!closed) {
-                        closeTimer.stop();
-                        calendarPopup.visible = true;
-                        calendar.viewMonth = new Date().getMonth();
-                        calendar.viewYear = new Date().getFullYear();
-                        cornerTimer.interval = 30;
+
+                // ── FRAME CORNERS (rounded inner joints where bars meet) ─
+                // Transparent fullscreen overlay. Bar windows are clipped to
+                // their own rect, so the concave fillet at each inner junction
+                // has to be drawn here, on the transparent gap. Takes no input.
+                PanelWindow {
+                    id: frameCorners
+                    screen: screenRoot.modelData
+                    color: "transparent"
+                    exclusionMode: ExclusionMode.Ignore
+                    WlrLayershell.layer: WlrLayer.Overlay
+                    WlrLayershell.namespace: "quickshell-frame-corners"
+
+                    mask: Region {}
+
+                    anchors {
+                        top: true
+                        bottom: true
+                        left: true
+                        right: true
+                    }
+
+                    readonly property real barT: topBar.height
+                    readonly property real barB: bottomBar.height
+                    readonly property real barL: leftBar.width
+                    readonly property real barR: rightBar.width
+
+                    // top-left inner joint (leftBar top end)
+                    InvertedCorner {
+                        joint: "bottomRight"
+                        x: frameCorners.barL
+                        y: frameCorners.barT
+                    }
+                    // top-right inner joint
+                    InvertedCorner {
+                        joint: "bottomLeft"
+                        x: parent.width - frameCorners.barR - r
+                        y: frameCorners.barT
+                    }
+                    // bottom-left inner joint
+                    InvertedCorner {
+                        joint: "topRight"
+                        x: frameCorners.barL
+                        y: parent.height - frameCorners.barB - r
+                    }
+                    // bottom-right inner joint
+                    InvertedCorner {
+                        joint: "topLeft"
+                        x: parent.width - frameCorners.barR - r
+                        y: parent.height - frameCorners.barB - r
+                    }
+                }
+
+                PanelWindow {
+                    id: calendarPopup
+                    screen: screenRoot.modelData
+                    visible: false
+                    focusable: true
+                    color: "transparent"
+                    WlrLayershell.layer: WlrLayer.Top
+                    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+                    WlrLayershell.namespace: "quickshell-calendar"
+
+                    exclusionMode: ExclusionMode.Ignore
+
+                    anchors {
+                        top: true
+                        left: true
+                        bottom: true
+                        right: true
+                    }
+                    margins.top: topBar.height
+
+                    property bool closed: true
+                    property bool cornersVisible: false
+
+                    Timer {
+                        id: closeTimer
+                        interval: Theme.animationSpeed
+                        onTriggered: () => {
+                            if (calendarPopup.closed)
+                                calendarPopup.visible = false;
+                        }
+                    }
+
+                    // Staggers the InvertedCorner pieces vs the slide animation:
+                    // opening -> appear 30ms in, hiding -> disappear 30ms early.
+                    Timer {
+                        id: cornerTimer
+                        onTriggered: calendarPopup.cornersVisible = !calendarPopup.closed
+                    }
+
+                    function hidePanel() {
+                        calendarPopup.closed = true;
+                        cornerTimer.interval = 175;
                         cornerTimer.restart();
-                    } else {
-                        calendarPopup.hidePanel();
+                        closeTimer.start();
+                    }
+                    function toggle() {
+                        calendarPopup.closed = !calendarPopup.closed;
+                        if (!closed) {
+                            closeTimer.stop();
+                            calendarPopup.visible = true;
+                            calendar.viewMonth = new Date().getMonth();
+                            calendar.viewYear = new Date().getFullYear();
+                            cornerTimer.interval = 30;
+                            cornerTimer.restart();
+                        } else {
+                            calendarPopup.hidePanel();
+                        }
+                    }
+
+                    // iOS-style dim backdrop
+                    Rectangle {
+                        anchors.fill: parent
+                        color: "black"
+                        opacity: calendarPopup.closed ? 0 : 0.3
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: Theme.animationSpeed
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: calendarPopup.hidePanel()
+                    }
+
+                    CalendarPanel {
+                        id: calendar
+                        x: topBar.width / 2 - width / 2
+                        y: !calendarPopup.closed ? 0 : -height - Theme.gap - topBar.height
+                        width: 320
+                        height: implicitHeight
+                        opacity: calendarPopup.closed ? 0 : 1
+                        scale: calendarPopup.closed ? 0.94 : 1
+                        transformOrigin: Item.Top
+                        Behavior on y {
+                            NumberAnimation {
+                                duration: Theme.animationSpeed
+                                easing.type: Easing.OutExpo
+                            }
+                        }
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: Theme.animationSpeed
+                                easing.type: Easing.OutExpo
+                            }
+                        }
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: Theme.animationSpeed / 2
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+
+                    // Inverted corners: seamless joint where popup touches topBar
+                    InvertedCorner {
+                        joint: "bottomLeft"
+                        x: calendar.x - r
+                        y: calendar.y
+                        visible: true
+                    }
+                    InvertedCorner {
+                        joint: "bottomRight"
+                        x: calendar.x + calendar.width
+                        y: calendar.y
+                        visible: true
                     }
                 }
 
-                // iOS-style dim backdrop
-                Rectangle {
-                    anchors.fill: parent
-                    color: "black"
-                    opacity: calendarPopup.closed ? 0 : 0.3
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.animationSpeed
-                            easing.type: Easing.OutCubic
+                EmojiPanel {
+                    id: emojiPanel
+                    targetScreen: screenRoot.modelData
+                }
+
+                // This screen's own popups yield whenever anything opens anywhere
+                // (shellRoot.popupEpoch bumps in closeOtherPopups).
+                Connections {
+                    target: shellRoot
+                    function onPopupEpochChanged() {
+                        if (screenRoot.epochGuard)
+                            return;
+                        if (!calendarPopup.closed)
+                            calendarPopup.hidePanel();
+                        if (!emojiPanel.closed)
+                            emojiPanel.hidePanel();
+                    }
+                }
+                Connections {
+                    target: calendarPopup
+                    function onClosedChanged() {
+                        if (!calendarPopup.closed) {
+                            screenRoot.epochGuard = true;
+                            shellRoot.closeOtherPopups(null);
+                            screenRoot.epochGuard = false;
                         }
                     }
                 }
-
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: calendarPopup.hidePanel()
-                }
-
-                CalendarPanel {
-                    id: calendar
-                    x: topBar.width / 2 - width / 2
-                    y: !calendarPopup.closed ? 0 : -height - Theme.gap - topBar.height
-                    width: 320
-                    height: implicitHeight
-                    opacity: calendarPopup.closed ? 0 : 1
-                    scale: calendarPopup.closed ? 0.94 : 1
-                    transformOrigin: Item.Top
-                    Behavior on y {
-                        NumberAnimation {
-                            duration: Theme.animationSpeed
-                            easing.type: Easing.OutExpo
+                Connections {
+                    target: emojiPanel
+                    function onClosedChanged() {
+                        if (!emojiPanel.closed) {
+                            screenRoot.epochGuard = true;
+                            shellRoot.closeOtherPopups(null);
+                            screenRoot.epochGuard = false;
                         }
-                    }
-                    Behavior on scale {
-                        NumberAnimation {
-                            duration: Theme.animationSpeed
-                            easing.type: Easing.OutExpo
-                        }
-                    }
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.animationSpeed / 2
-                            easing.type: Easing.OutCubic
-                        }
-                    }
-                }
-
-                // Inverted corners: seamless joint where popup touches topBar
-                InvertedCorner {
-                    joint: "bottomLeft"
-                    x: calendar.x - r
-                    y: calendar.y
-                    visible: true
-                }
-                InvertedCorner {
-                    joint: "bottomRight"
-                    x: calendar.x + calendar.width
-                    y: calendar.y
-                    visible: true
-                }
-            }
-
-            EmojiPanel {
-                id: emojiPanel
-                targetScreen: screenRoot.modelData
-            }
-
-            // This screen's own popups yield whenever anything opens anywhere
-            // (shellRoot.popupEpoch bumps in closeOtherPopups).
-            Connections {
-                target: shellRoot
-                function onPopupEpochChanged() {
-                    if (screenRoot.epochGuard)
-                        return;
-                    if (!calendarPopup.closed)
-                        calendarPopup.hidePanel();
-                    if (!emojiPanel.closed)
-                        emojiPanel.hidePanel();
-                }
-            }
-            Connections {
-                target: calendarPopup
-                function onClosedChanged() {
-                    if (!calendarPopup.closed) {
-                        screenRoot.epochGuard = true;
-                        shellRoot.closeOtherPopups(null);
-                        screenRoot.epochGuard = false;
-                    }
-                }
-            }
-            Connections {
-                target: emojiPanel
-                function onClosedChanged() {
-                    if (!emojiPanel.closed) {
-                        screenRoot.epochGuard = true;
-                        shellRoot.closeOtherPopups(null);
-                        screenRoot.epochGuard = false;
                     }
                 }
             }
         }
     }
-}}
+}

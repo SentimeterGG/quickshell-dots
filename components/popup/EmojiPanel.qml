@@ -339,7 +339,7 @@ Scope {
         visible: false
         focusable: true
         color: "transparent"
-        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: root.claimed ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         WlrLayershell.namespace: "quickshell-emoji"
 
