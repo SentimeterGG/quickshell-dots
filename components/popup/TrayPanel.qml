@@ -107,7 +107,7 @@ Scope {
         visible: false
         focusable: true
         color: "transparent"
-        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         WlrLayershell.namespace: "quickshell-tray"
 

@@ -94,7 +94,7 @@ Scope {
         visible: false
         focusable: false
         color: "transparent"
-        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.namespace: "quickshell-sliders"
 
         exclusionMode: ExclusionMode.Ignore
@@ -127,9 +127,10 @@ Scope {
             onPressed: root.hidePanel()
         }
 
-        // Docked frame. The card slides inside it so it never overlaps the
-        // right bar; the bar itself is on WlrLayer.Overlay, above this
-        // window, so the card is genuinely occluded by the panel.
+        // Fixed docked frame, clipped at the bar's edge. The card slides
+        // inside it, so it looks like it emerges from *behind* the panel
+        // even though the window stays on top (a lower layer would also
+        // fall behind normal app windows, hiding the popup entirely).
         Item {
             id: sliderClip
             // Frame = card + one corner band above and below, so the whole
