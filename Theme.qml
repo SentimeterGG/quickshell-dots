@@ -25,6 +25,7 @@ QtObject {
         "weight": 700
     })
     property color background: "#111111"
+    property int barHeight: 48
     property int gap: 16
     property int radius: 16
     property color separator: "#333"

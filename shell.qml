@@ -9,6 +9,7 @@ import Quickshell.Networking
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 import Quickshell.Services.SystemTray
+import Quickshell.Services.Notifications
 import "components/bar"
 import "components/popup"
 
@@ -58,7 +59,30 @@ ShellRoot {
     Loader {
         id: notificationLoader
         active: false
-        sourceComponent: NotificationPanel {}
+        sourceComponent: NotificationPanel {
+            server: notificationServer
+        }
+    }
+
+    // The notification daemon lives here, not inside the lazily-loaded
+    // panel: the D-Bus name org.freedesktop.Notifications must be owned
+    // from startup, otherwise notify-send fails with ServiceUnknown.
+    NotificationServer {
+        id: notificationServer
+        keepOnReload: true
+        actionsSupported: true
+        bodyMarkupSupported: true
+        bodyHyperlinksSupported: true
+        bodyImagesSupported: true
+        imageSupported: true
+        persistenceSupported: true
+
+        onNotification: notif => {
+            notif.tracked = true;
+            const panel = shellRoot.openPopup(notificationLoader);
+            if (panel.closed)
+                panel.toggle();
+        }
     }
 
     // IPC entry points live here so they work before first open.
@@ -202,8 +226,8 @@ ShellRoot {
             PanelWindow {
                 id: topBar
                 screen: screenRoot.modelData
-                implicitHeight: 48
-                exclusiveZone: 48
+                implicitHeight: Theme.barHeight
+                exclusiveZone: Theme.barHeight
                 color: Theme.background
 
                 anchors {

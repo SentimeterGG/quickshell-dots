@@ -9,6 +9,10 @@ import "../.."
 Scope {
     id: root
     property bool closed: true
+    // Shared daemon from shell.qml. The panel is created lazily, so it
+    // must not own the NotificationServer itself (the D-Bus name has to
+    // be claimed at startup).
+    property var server: null
     onClosedChanged: {
         if (!closed) {
             // Opening: snap to final size so the slide-down runs at full
@@ -24,27 +28,10 @@ Scope {
         }
     }
 
-    // Owns the notification daemon endpoint. All tracked notifications
-    // become rows in the list below via server.trackedNotifications.
-    NotificationServer {
-        id: notifServer
-        keepOnReload: false
-        actionsSupported: true
-        bodyMarkupSupported: true
-        bodyHyperlinksSupported: true
-        bodyImagesSupported: true
-        imageSupported: true
-        persistenceSupported: true
-
-        onNotification: notif => {
-            notif.tracked = true;
-            if (root.closed)
-                root.toggle();
-        }
-    }
-
     function clearAll() {
-        const items = [...notifServer.trackedNotifications.values];
+        if (!root.server)
+            return;
+        const items = [...root.server.trackedNotifications.values];
         for (const n of items)
             n.dismiss();
     }
@@ -92,7 +79,7 @@ Scope {
             top: true
             right: true
         }
-        margins.top: topBar.height
+        margins.top: Theme.barHeight
         margins.right: Theme.gap
 
         implicitWidth: 400 + cornerTopLeft.r
@@ -210,7 +197,7 @@ Scope {
                         cacheBuffer: 240
                         reuseItems: true
 
-                        model: notifServer.trackedNotifications
+                        model: root.server ? root.server.trackedNotifications : null
 
                         onCountChanged: {
                             if (count === 0 && !root.closed)

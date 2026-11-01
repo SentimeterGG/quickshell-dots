@@ -93,6 +93,16 @@ Scope {
         armTimer.stop();
     }
 
+    // Keep the category strip within bounds when scrolled by wheel or drag.
+    function scrollTabsTo(x: real) {
+        var max = Math.max(0, tabRow.contentWidth - tabRow.width);
+        tabRow.contentX = Math.max(0, Math.min(max, x));
+    }
+
+    function scrollTabsBy(dx: real) {
+        scrollTabsTo(tabRow.contentX + dx);
+    }
+
     function refreshModel() {
         var q = searchField.text.trim();
         if (q !== "")
@@ -142,8 +152,10 @@ Scope {
     }
 
     function persistRecents() {
+        // Single-quote for the shell, escaping embedded quotes so symbols
+        // like ' (now present in the Unicode section) cannot break out.
         var args = root.recents.map(function (c) {
-            return "'" + c + "'";
+            return "'" + c.replace(/'/g, "'\\''") + "'";
         }).join(" ");
         ioProc.exec(["sh", "-c", "mkdir -p \"$HOME\"/.cache/quickshell && printf '%s\\n' " + args + " > \"$HOME\"/.cache/quickshell/emoji-recent"]);
     }
@@ -271,7 +283,7 @@ Scope {
         interval: 120
         onTriggered: {
             if (root.pendingChar !== "")
-                ioProc.exec(["wtype", root.pendingChar]);
+                ioProc.exec(["wtype", "--", root.pendingChar]);
             root.pendingChar = "";
         }
     }
@@ -471,6 +483,18 @@ Scope {
                     reuseItems: true
                     model: root.tabNames
 
+                    // The tab strip is wider than the card; let the wheel
+                    // scroll it so the later categories stay reachable.
+                    WheelHandler {
+                        onWheel: event => {
+                            var d = event.angleDelta.x !== 0 ? event.angleDelta.x : event.angleDelta.y;
+                            if (d === 0)
+                                d = event.pixelDelta.x !== 0 ? event.pixelDelta.x : event.pixelDelta.y;
+                            root.scrollTabsBy(-d);
+                            event.accepted = true;
+                        }
+                    }
+
                     delegate: Rectangle {
                         required property var modelData
                         required property int index
@@ -491,11 +515,45 @@ Scope {
                             id: tabMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.currentCat = index - 1;
-                                root.hoverName = "";
-                                root.refreshModel();
+                            cursorShape: dragging ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+
+                            property real pressRowX: 0
+                            property real pressContentX: 0
+                            property bool dragging: false
+
+                            onPressed: mouse => {
+                                // Map to the (non-scrolling) ListView so the
+                                // cursor position stays stable while contentX
+                                // changes under it.
+                                pressRowX = tabMouse.mapToItem(tabRow, mouse.x, mouse.y).x;
+                                pressContentX = tabRow.contentX;
+                                dragging = false;
+                            }
+                            onPositionChanged: mouse => {
+                                if (!pressed)
+                                    return;
+                                var rowX = tabMouse.mapToItem(tabRow, mouse.x, mouse.y).x;
+                                var dx = rowX - pressRowX;
+                                if (!dragging && Math.abs(dx) > 6)
+                                    dragging = true;
+                                if (dragging)
+                                    root.scrollTabsTo(pressContentX - dx);
+                            }
+                            onReleased: {
+                                if (!dragging) {
+                                    root.currentCat = index - 1;
+                                    root.hoverName = "";
+                                    root.refreshModel();
+                                    tabRow.positionViewAtIndex(index, ListView.Contain);
+                                }
+                                dragging = false;
+                            }
+                            onWheel: event => {
+                                var d = event.angleDelta.x !== 0 ? event.angleDelta.x : event.angleDelta.y;
+                                if (d === 0)
+                                    d = event.pixelDelta.x !== 0 ? event.pixelDelta.x : event.pixelDelta.y;
+                                root.scrollTabsBy(-d);
+                                event.accepted = true;
                             }
                         }
                     }
@@ -529,6 +587,7 @@ Scope {
                             Text {
                                 anchors.centerIn: parent
                                 text: modelData.char
+                                color: Theme.accent
                                 font.pointSize: 24
                             }
                             MouseArea {
